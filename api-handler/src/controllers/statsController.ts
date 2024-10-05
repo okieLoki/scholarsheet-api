@@ -17,7 +17,8 @@ export class StatsController {
       });
 
       const publicationCountYearWise = papers.reduce((acc, paper) => {
-        const year = paper.publicationDate.split("/")[0];
+        let year = paper.publicationDate.split("/")[0];
+        if (year == "") year = "unknown";
         acc[year] = acc[year] ? acc[year] + 1 : 1;
         return acc;
       }, {});

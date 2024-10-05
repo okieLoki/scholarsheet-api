@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { StatsController } from "../controllers/statsController";
 import { adminAuthHandler } from "../middleware/authHandler";
+import { AdminStatsController } from "../controllers/adminStatsController";
 
 class StatsRouter {
   public router: Router;
@@ -10,78 +10,57 @@ class StatsRouter {
   }
 
   routes() {
+
     this.router.get(
-      "/publications/yearwise",
+      "/departments",
       adminAuthHandler,
-      StatsController.prototype.totalPublicationsYearWise
-    );
+      AdminStatsController.prototype.getDepartments
+    )
+
     this.router.get(
-      "/publications/department",
+      "/card-data",
       adminAuthHandler,
-      StatsController.prototype.totalPublicationsDepartmentWise
+      AdminStatsController.prototype.getCardStatsData
     );
+
     this.router.get(
-      "/publications/department/yearwise",
+      "/analytics-graph",
       adminAuthHandler,
-      StatsController.prototype.totalPublicationsofDepartmentYearWise
+      AdminStatsController.prototype.getAnalyticsGraphData
     );
+
     this.router.get(
-      "/researchers/department/top",
+      "/top-researchers",
       adminAuthHandler,
-      StatsController.prototype
-        .topResearchersAcrossDepartmentsAccordingToCitations
+      AdminStatsController.prototype.getTopResearchersData
     );
+
     this.router.get(
-      "/tags/publication/top",
+      "/research-topics",
       adminAuthHandler,
-      StatsController.prototype.topTagsOfPublication
+      AdminStatsController.prototype.getResearchTopicsData
     );
+
     this.router.get(
-      "/publications/average-citations",
+      "/journal-diversity",
       adminAuthHandler,
-      StatsController.prototype.averageCitationsPerPaper
+      AdminStatsController.prototype.getJournalDiversityData
     );
+
     this.router.get(
-      "/publications/most-cited",
+      "/filter-data",
       adminAuthHandler,
-      StatsController.prototype.mostCitedPapers
+      AdminStatsController.prototype.getPreFilterData
     );
-    this.router.get(
-      "/publications/trends",
+
+    this.router.post(
+      "/top-publications",
       adminAuthHandler,
-      StatsController.prototype.publicationTrends
+      AdminStatsController.prototype.getTopPublicationsData
     );
-    this.router.get(
-      "/researchers/collaboration-network",
-      adminAuthHandler,
-      StatsController.prototype.researcherCollaborationNetwork
-    );
-    this.router.get(
-      "/researchers/productivity",
-      adminAuthHandler,
-      StatsController.prototype.researcherProductivity
-    );
-    this.router.get(
-      "/departments/comparison",
-      adminAuthHandler,
-      StatsController.prototype.departmentComparison
-    );
-    this.router.get(
-      "/publications/journal-diversity",
-      adminAuthHandler,
-      StatsController.prototype.journalDiversity
-    );
-    this.router.get(
-      "/researchers/growth",
-      adminAuthHandler,
-      StatsController.prototype.researcherGrowth
-    );
-    
 
     return this.router;
   }
-
-  
 }
 
 export const statsRouter = new StatsRouter();

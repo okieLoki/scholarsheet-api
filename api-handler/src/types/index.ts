@@ -15,7 +15,7 @@ export type Article = {
   publicationYear: number;
   totalCitations: number;
   researcher_id?: mongoose.Types.ObjectId;
-}
+};
 export type ArticleExtended = {
   title: string;
   link: string;
@@ -31,4 +31,11 @@ export type ArticleExtended = {
   publicationLink: string;
   pdfLink: string;
   researcher_id?: string;
-}
+};
+export type PublicationFetchingFilters = {
+  year?: string[];
+  journal?: string[];
+  author?: string[];
+  topic?: string[];
+  citationsRange?: [number, number];
+};

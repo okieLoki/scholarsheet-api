@@ -8,6 +8,7 @@ import { rabbitmq } from "./config/rabbitmq";
 import { calculatorService } from "./services/calculator-service/calculator.service";
 import { statsRouter } from "./routes/statsRoutes";
 import { researcherProfileRouter } from "./routes/reseacherRoute";
+import { initializeRoutes } from "./routes/routes";
 
 const init = async () => {
   const app: Application = express();
@@ -21,9 +22,7 @@ const init = async () => {
   app.use(morgan("dev"));
 
   // ROUTES
-  app.use("/admin", adminRouter.routes());
-  app.use("/admin/stats", statsRouter.routes());
-  app.use("/admin/reseacher", researcherProfileRouter.routes());
+  initializeRoutes(app);
 
   app.use(errorHandler);
 

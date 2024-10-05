@@ -32,6 +32,9 @@ const adminSchema = new Schema(
     google_id: {
       type: String,
     },
+    departments: {
+      type: [String],
+    },
   },
   {
     timestamps: true,

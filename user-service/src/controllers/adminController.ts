@@ -4,7 +4,7 @@ import {
   addResearcherValidator,
   createAdminAccountValidator,
   loginAccountValidator,
-} from "../lib/validators";
+} from "../lib/validators/adminValidators";
 import { sendEmailVerificationMail } from "../lib/services/emailService";
 import createError from "http-errors";
 import crypto from "node:crypto";
@@ -14,6 +14,7 @@ import { config } from "../config";
 import { ResearcherModel } from "../models/researcher";
 import { ResearcherData } from "../types";
 import mongoose from "mongoose";
+import amqp from "amqplib";
 import { researcherScrapper } from "../lib/scrapper/researcherScapper";
 import { rabbitmq } from "../config/rabbitmq";
 import { queues } from "../config/enum";
@@ -91,9 +92,9 @@ export class AdminController {
 
       await admin.save();
 
-      return res
-        .status(200)
-        .send("Email verified successfully. You can now login");
+      return res.status(200).json({
+        message: "Account verified successfully",
+      });
     } catch (error) {
       next(error);
     }
@@ -122,7 +123,7 @@ export class AdminController {
       const token = await jwt.sign(
         { id: admin._id.toString() },
         config.JWT_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "1h" }
       );
 
       res.setHeader("Authorization", `Bearer ${token}`);
@@ -140,31 +141,10 @@ export class AdminController {
     }
   }
 
-  public async addDepartments(req: Request, res: Response, next: NextFunction) {
-    try {
-      const admin = req.admin;
-      const departments = req.body.departments as string[];
-
-      const updatedAdmin = await AdminModel.findByIdAndUpdate(
-        admin.id,
-        { departments: departments },
-        { new: true }
-      );
-
-      return res.status(200).json({
-        message: "Departments added successfully",
-        departments: updatedAdmin?.departments,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
   public async addReseacher(req: Request, res: Response, next: NextFunction) {
     try {
       const admin = req.admin;
-      const { scholar_id, email, department, positions } =
-        addResearcherValidator.parse(req.body);
+      const { scholar_id, email } = addResearcherValidator.parse(req.body);
 
       const researcher = await ResearcherModel.findOne({ scholar_id });
 
@@ -177,23 +157,12 @@ export class AdminController {
           );
       }
 
-      const adminDepartments = await AdminModel.findById(admin.id, {
-        department: 1,
-      });
-
-      if (!adminDepartments?.departments.includes(department))
-        throw new createError.BadRequest(
-          "Please add the department before adding researcher"
-        );
-
       const reseacherData: ResearcherData =
         await researcherScrapper.getResearcherData(scholar_id);
 
       const newResearcher = await ResearcherModel.create({
         scholar_id,
         email,
-        department,
-        positions,
         admin_id: admin.id,
         citations: reseacherData.citations,
         h_index: reseacherData.hIndex,
