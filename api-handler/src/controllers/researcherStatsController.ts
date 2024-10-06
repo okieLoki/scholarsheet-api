@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { PaperModel } from "../models/paper";
 import { ResearcherModel } from "../models/researcher";
 import { PublicationFetchingFiltersResearcher } from "../types";
-import { publicationFetchingFiltersValidator } from "../lib/validators";
+import { publicationFetchingFiltersValidatorResearcher } from "../lib/validators";
 import mongoose, { PipelineStage } from "mongoose";
 import createHttpError from "http-errors";
 
@@ -54,7 +54,11 @@ export class ResearcherStatsController {
     }
   }
 
-  async getCardStatsData(req: Request, res: Response, next: NextFunction) {
+  public async getCardStatsData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const admin_id = req.admin.id as string;
       const scholar_id = req.query.scholar_id as string;
@@ -77,14 +81,34 @@ export class ResearcherStatsController {
       const currentYear = new Date().getFullYear();
       const lastYear = currentYear - 1;
 
-      const currentYearCitations = papers.reduce(
-        (sum, paper) => sum + (paper.totalCitations || 0),
+      const citationsByYear = papers.reduce((acc, paper) => {
+        const publicationYear = new Date(paper.publicationDate).getFullYear();
+        if (!acc[publicationYear]) {
+          acc[publicationYear] = 0;
+        }
+        acc[publicationYear] += paper.totalCitations || 0;
+        return acc;
+      }, {} as Record<number, number>);
+
+      const currentYearCitations = Object.entries(citationsByYear).reduce(
+        (sum, [year, citations]) => {
+          return sum + (parseInt(year) <= currentYear ? citations : 0);
+        },
         0
       );
-      const lastYearCitations = researcher.citations || 0;
+
+      const lastYearCitations = Object.entries(citationsByYear).reduce(
+        (sum, [year, citations]) => {
+          return sum + (parseInt(year) <= lastYear ? citations : 0);
+        },
+        0
+      );
 
       const citationIncrease =
-        ((currentYearCitations - lastYearCitations) / lastYearCitations) * 100;
+        lastYearCitations !== 0
+          ? ((currentYearCitations - lastYearCitations) / lastYearCitations) *
+            100
+          : 100;
 
       const totalPapersCurrentYear = papers.filter((paper) => {
         const publicationYear = new Date(paper.publicationDate).getFullYear();
@@ -97,8 +121,11 @@ export class ResearcherStatsController {
       }).length;
 
       const totalPapersIncrease =
-        ((totalPapersCurrentYear - totalPapersLastYear) / totalPapersLastYear) *
-        100;
+        totalPapersLastYear !== 0
+          ? ((totalPapersCurrentYear - totalPapersLastYear) /
+              totalPapersLastYear) *
+            100
+          : 100;
 
       const response = {
         citations: {
@@ -121,7 +148,6 @@ export class ResearcherStatsController {
       next(error);
     }
   }
-
   async getAnalyticsGraphData(req: Request, res: Response, next: NextFunction) {
     try {
       const admin_id = req.admin.id as string;
@@ -267,6 +293,7 @@ export class ResearcherStatsController {
       const scholar_id = req.query.scholar_id as string;
       const criteria = req.query.criteria as string;
       const limit = parseInt(req.query.limit as string) || 5;
+      const page = parseInt(req.query.page as string) || 1;
 
       if (!scholar_id) {
         throw new createHttpError.BadRequest("Scholar ID is required");
@@ -278,20 +305,21 @@ export class ResearcherStatsController {
         throw new createHttpError.BadRequest("Invalid criteria");
       }
 
-      // First, get the department of the specified scholar
       const specifiedScholar = await ResearcherModel.findOne({
         scholar_id,
         admin_id,
-      });
+      }).lean();
       if (!specifiedScholar) {
         throw new createHttpError.NotFound("Specified scholar not found");
       }
+
+      const department = specifiedScholar.department;
 
       const pipeline: mongoose.PipelineStage[] = [
         {
           $match: {
             admin_id: new mongoose.Types.ObjectId(admin_id),
-            department: specifiedScholar.department,
+            department,
           },
         },
         { $sort: { [criteria]: -1 } },
@@ -299,50 +327,79 @@ export class ResearcherStatsController {
           $setWindowFields: {
             sortBy: { [criteria]: -1 },
             output: {
-              rank: {
-                $rank: {},
-              },
+              rank: { $rank: {} },
             },
           },
         },
         {
-          $project: {
-            _id: 1,
-            name: 1,
-            scholar_id: 1,
-            department: 1,
-            totalPapers: 1,
-            citations: 1,
-            h_index: 1,
-            i_index: 1,
-            rank: 1,
+          $facet: {
+            metadata: [
+              { $count: "total" },
+              {
+                $addFields: {
+                  page,
+                  limit,
+                  pages: {
+                    $ceil: { $divide: ["$total", limit] },
+                  },
+                },
+              },
+            ],
+            data: [
+              { $skip: (page - 1) * limit },
+              { $limit: limit },
+              {
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  scholar_id: 1,
+                  department: 1,
+                  totalPapers: 1,
+                  citations: 1,
+                  h_index: 1,
+                  i_index: 1,
+                  rank: 1,
+                },
+              },
+            ],
+            specifiedResearcher: [
+              { $match: { scholar_id } },
+              {
+                $project: {
+                  _id: 1,
+                  name: 1,
+                  scholar_id: 1,
+                  department: 1,
+                  totalPapers: 1,
+                  citations: 1,
+                  h_index: 1,
+                  i_index: 1,
+                  rank: 1,
+                },
+              },
+            ],
           },
         },
       ];
 
-      const allResearchers = await ResearcherModel.aggregate(pipeline);
-
-      const specifiedResearcher = allResearchers.find(
-        (r) => r.scholar_id === scholar_id
-      );
-      const researcherRank = specifiedResearcher
-        ? specifiedResearcher.rank
-        : null;
-
-      const topResearchers = allResearchers.slice(0, limit);
-
-      if (
-        specifiedResearcher &&
-        !topResearchers.some((r) => r.scholar_id === scholar_id)
-      ) {
-        topResearchers.push(specifiedResearcher);
-      }
+      const result = await ResearcherModel.aggregate(pipeline);
+      const topResearchers = result[0].data;
+      const metadata = result[0].metadata[0];
+      const specifiedResearcherData = result[0].specifiedResearcher[0];
 
       res.status(200).json({
         topResearchers,
-        researcher: {
-          rank: researcherRank,
-          ...specifiedResearcher,
+        researcher: specifiedResearcherData
+          ? {
+              rank: specifiedResearcherData.rank,
+              ...specifiedResearcherData,
+            }
+          : null,
+        pagination: {
+          total: metadata?.total || 0,
+          page,
+          limit,
+          pages: metadata?.pages || 0,
         },
       });
     } catch (error) {
@@ -428,7 +485,7 @@ export class ResearcherStatsController {
       const admin_id = req.admin.id as string;
       const scholar_id = req.query.scholar_id as string;
 
-      if(!scholar_id){
+      if (!scholar_id) {
         throw new createHttpError.BadRequest("Scholar ID is required");
       }
 
@@ -500,15 +557,98 @@ export class ResearcherStatsController {
     req: Request,
     res: Response,
     next: NextFunction
-  ){
+  ) {
     try {
       const admin_id = req.admin.id as string;
       const scholar_id = req.query.scholar_id as string;
       const filters = req.body as PublicationFetchingFiltersResearcher;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const skip = (page - 1) * limit;
+
+      publicationFetchingFiltersValidatorResearcher.parse(filters);
+
       if (!scholar_id) {
         throw new createHttpError.BadRequest("Scholar ID is required");
       }
 
+      let sortCriteria: Record<string, 1 | -1> = { totalCitations: -1 };
+
+      const matchStage = {
+        "researcher.scholar_id": scholar_id,
+        admin_id: new mongoose.Types.ObjectId(admin_id),
+      };
+      if (filters) {
+        if (filters.year) {
+          matchStage["publicationDate"] = {
+            $in: filters.year.map((year) => new RegExp(`^${year}`)),
+          };
+        }
+        if (filters.journal) {
+          matchStage["journal"] = { $in: filters.journal };
+        }
+        if (filters.topic) {
+          matchStage["tags"] = { $in: filters.topic };
+        }
+        if (filters.citationsRange) {
+          matchStage["totalCitations"] = {
+            $gte: filters.citationsRange[0],
+            $lte: filters.citationsRange[1],
+          };
+        }
+        if (filters.sort) {
+          const [sort, order] = filters.sort.split(":");
+          sortCriteria = { [sort]: order === "asc" ? 1 : -1 };
+        }
+      }
+      console.log(sortCriteria);
+      const aggregationPipeline: PipelineStage[] = [
+        { $match: matchStage },
+        {
+          $project: {
+            _id: 0,
+            title: 1,
+            year: { $substr: ["$publicationDate", 0, 4] },
+            citations: "$totalCitations",
+            author: "$researcher.name",
+            coAuthors: {
+              $filter: {
+                input: "$authors",
+                as: "author",
+                cond: { $ne: ["$$author", "$researcher.name"] },
+              },
+            },
+            topics: "$tags",
+            publicationLink: 1,
+            pdfLink: 1,
+            description: 1,
+            journal: 1,
+            department: "$researcher.department",
+            googleScholarId: "$researcher.researcher_id",
+          },
+        },
+        { $sort: sortCriteria },
+        {
+          $facet: {
+            metadata: [{ $count: "total" }, { $addFields: { page, limit } }],
+            data: [{ $skip: skip }, { $limit: limit }],
+          },
+        },
+      ];
+
+      const result = await PaperModel.aggregate(aggregationPipeline);
+
+      const responseData = {
+        publications: result[0].data,
+        pagination: {
+          total: result[0].metadata[0]?.total || 0,
+          page,
+          limit,
+          pages: Math.ceil((result[0].metadata[0]?.total || 0) / limit),
+        },
+      };
+
+      res.status(200).json(responseData);
     } catch (error) {
       next(error);
     }

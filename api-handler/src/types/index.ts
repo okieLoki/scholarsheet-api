@@ -35,6 +35,15 @@ export type ArticleExtended = {
 export type PublicationFetchingFiltersAdmin = {
   year?: string[];
   journal?: string[];
+  sort?:
+    | "title:asc"
+    | "title:desc"
+    | "year:asc"
+    | "year:desc"
+    | "author:asc"
+    | "author:desc"
+    | "citations:asc"
+    | "citations:desc";
   author?: string[];
   topic?: string[];
   citationsRange?: [number, number];
@@ -42,6 +51,13 @@ export type PublicationFetchingFiltersAdmin = {
 export type PublicationFetchingFiltersResearcher = {
   year?: string[];
   journal?: string[];
+  sort?:
+    | "title:asc"
+    | "title:desc"
+    | "year:asc"
+    | "year:desc"
+    | "citations:asc"
+    | "citations:desc";
   topic?: string[];
   citationsRange?: [number, number];
 };

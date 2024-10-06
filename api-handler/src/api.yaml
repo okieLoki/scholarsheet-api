@@ -263,12 +263,28 @@ paths:
                   type: array
                   items:
                     type: string
+                  default: ["cs"]
                 citationsRange:
                   type: array
                   items:
                     type: number
                   minItems: 2
                   maxItems: 2
+                  default: [0, 10]
+                sort:
+                  type: string
+                  enum:
+                    [
+                      "title:asc",
+                      "title:desc",
+                      "year:asc",
+                      "year:desc",
+                      "author:asc",
+                      "author:desc",
+                      "citations:asc",
+                      "citations:desc",
+                    ]
+                  default: citations:desc
       responses:
         "200":
           description: Successful response
@@ -476,5 +492,447 @@ paths:
                     department:
                       type: string
                       example: "csed"
+      security:
+        - bearerAuth: []
+
+  /researcher/stats/profile:
+    get:
+      summary: Get researcher profile data
+      tags:
+        - Researcher Stats
+      parameters:
+        - in: query
+          name: scholar_id
+          required: true
+          schema:
+            type: string
+          description: Scholar ID of the researcher
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  scholar_id:
+                    type: string
+                  email:
+                    type: string
+                  department:
+                    type: string
+                  citations:
+                    type: integer
+                  h_index:
+                    type: integer
+                  i_index:
+                    type: integer
+                  totalPapers:
+                    type: integer
+                  positions:
+                    type: array
+                    items:
+                      type: string
+                  admin_id:
+                    type: object
+                    properties:
+                      institute_name:
+                        type: string
+      security:
+        - bearerAuth: []
+
+  /researcher/stats/card-data:
+    get:
+      summary: Get researcher card stats data
+      tags:
+        - Researcher Stats
+      parameters:
+        - in: query
+          name: scholar_id
+          required: true
+          schema:
+            type: string
+          description: Scholar ID of the researcher
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  citations:
+                    type: object
+                    properties:
+                      currentYear:
+                        type: integer
+                      lastYear:
+                        type: integer
+                      increasePercentage:
+                        type: string
+                  totalPapers:
+                    type: object
+                    properties:
+                      currentYear:
+                        type: integer
+                      lastYear:
+                        type: integer
+                      total:
+                        type: integer
+                      increasePercentage:
+                        type: string
+                  hIndex:
+                    type: integer
+                  i10Index:
+                    type: integer
+      security:
+        - bearerAuth: []
+
+  /researcher/stats/analytics-graph:
+    get:
+      summary: Get researcher analytics graph data
+      tags:
+        - Researcher Stats
+      parameters:
+        - in: query
+          name: scholar_id
+          required: true
+          schema:
+            type: string
+          description: Scholar ID of the researcher
+        - in: query
+          name: criteria
+          required: true
+          schema:
+            type: string
+            enum: [totalPapers, totalCitations, hIndex, i10Index]
+          description: Criteria for graph data
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    year:
+                      type: integer
+                    value:
+                      type: integer
+      security:
+        - bearerAuth: []
+
+  /researcher/stats/top-researchers-department:
+    get:
+      summary: Get top researchers in the same department
+      tags:
+        - Researcher Stats
+      parameters:
+        - in: query
+          name: scholar_id
+          required: true
+          schema:
+            type: string
+          description: Scholar ID of the researcher
+        - in: query
+          name: criteria
+          required: true
+          schema:
+            type: string
+            enum: [totalPapers, citations, h_index, i_index]
+          description: Criteria for ranking researchers
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 5
+          description: Number of top researchers to retrieve
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  topResearchers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        name:
+                          type: string
+                        scholar_id:
+                          type: string
+                        department:
+                          type: string
+                        totalPapers:
+                          type: integer
+                        citations:
+                          type: integer
+                        h_index:
+                          type: integer
+                        i_index:
+                          type: integer
+                        rank:
+                          type: integer
+                  researcher:
+                    type: object
+                    properties:
+                      _id:
+                        type: string
+                      name:
+                        type: string
+                      scholar_id:
+                        type: string
+                      department:
+                        type: string
+                      totalPapers:
+                        type: integer
+                      citations:
+                        type: integer
+                      h_index:
+                        type: integer
+                      i_index:
+                        type: integer
+                      rank:
+                        type: integer
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      pages:
+                        type: integer
+      security:
+        - bearerAuth: []
+
+  /researcher/stats/research-topics:
+    get:
+      summary: Get researcher's research topics data
+      tags:
+        - Researcher Stats
+      parameters:
+        - in: query
+          name: scholar_id
+          required: true
+          schema:
+            type: string
+          description: Scholar ID of the researcher
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    _id:
+                      type: string
+                    count:
+                      type: integer
+      security:
+        - bearerAuth: []
+
+  /researcher/stats/journal-diversity:
+    get:
+      summary: Get researcher's journal diversity data
+      tags:
+        - Researcher Stats
+      parameters:
+        - in: query
+          name: scholar_id
+          required: true
+          schema:
+            type: string
+          description: Scholar ID of the researcher
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    _id:
+                      type: string
+                    count:
+                      type: integer
+      security:
+        - bearerAuth: []
+
+  /researcher/stats/filter-data:
+    get:
+      summary: Get researcher's pre-filter data
+      tags:
+        - Researcher Stats
+      parameters:
+        - in: query
+          name: scholar_id
+          required: true
+          schema:
+            type: string
+          description: Scholar ID of the researcher
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    years:
+                      type: array
+                      items:
+                        type: string
+                    journals:
+                      type: array
+                      items:
+                        type: string
+                    topics:
+                      type: array
+                      items:
+                        type: string
+                    minCitations:
+                      type: integer
+                    maxCitations:
+                      type: integer
+      security:
+        - bearerAuth: []
+
+  /researcher/stats/top-publications:
+    post:
+      summary: Get researcher's top publications data
+      tags:
+        - Researcher Stats
+      parameters:
+        - in: query
+          name: scholar_id
+          required: true
+          schema:
+            type: string
+          description: Scholar ID of the researcher
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of top publications to retrieve per page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                year:
+                  type: array
+                  items:
+                    type: string
+                journal:
+                  type: array
+                  items:
+                    type: string
+                topic:
+                  type: array
+                  items:
+                    type: string
+                citationsRange:
+                  type: array
+                  items:
+                    type: number
+                  minItems: 2
+                  maxItems: 2
+                sort:
+                  type: string
+                  enum:
+                    [
+                      "title:asc",
+                      "title:desc",
+                      "year:asc",
+                      "year:desc",
+                      "citations:asc",
+                      "citations:desc",
+                    ]
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publications:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        title:
+                          type: string
+                        year:
+                          type: string
+                        citations:
+                          type: integer
+                        author:
+                          type: string
+                        coAuthors:
+                          type: array
+                          items:
+                            type: string
+                        topics:
+                          type: array
+                          items:
+                            type: string
+                        publicationLink:
+                          type: string
+                        pdfLink:
+                          type: string
+                        description:
+                          type: string
+                        journal:
+                          type: string
+                        department:
+                          type: string
+                        googleScholarId:
+                          type: string
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      pages:
+                        type: integer
       security:
         - bearerAuth: []

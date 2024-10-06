@@ -52,6 +52,14 @@ class ResearcherStatsRouter {
       adminAuthHandler,
       ResearcherStatsController.prototype.getPreFilterData
     );
+
+    this.router.post(
+      "/top-publications",
+      adminAuthHandler,
+      ResearcherStatsController.prototype.getTopPublicationsData
+    );
+
+
     return this.router;
   }
 }

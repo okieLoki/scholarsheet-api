@@ -58,10 +58,39 @@ export const addResearcherValidator = z.object({
     .optional(),
 });
 
-export const publicationFetchingFiltersValidator = z.object({
+export const publicationFetchingFiltersValidatorAdmin = z.object({
   year: z.array(z.number()).optional(),
   journal: z.array(z.string()).optional(),
   author: z.array(z.string()).optional(),
+  sort: z
+    .enum([
+      "title:asc",
+      "title:desc",
+      "year:asc",
+      "year:desc",
+      "author:asc",
+      "author:desc",
+      "citations:asc",
+      "citations:desc",
+    ])
+    .optional(),
   topic: z.array(z.string()).optional(),
+  citationsRange: z.array(z.number()).length(2).optional(),
+});
+
+export const publicationFetchingFiltersValidatorResearcher = z.object({
+  year: z.array(z.number()).optional(),
+  journal: z.array(z.string()).optional(),
+  topic: z.array(z.string()).optional(),
+  sort: z
+    .enum([
+      "title:asc",
+      "title:desc",
+      "year:asc",
+      "year:desc",
+      "citations:asc",
+      "citations:desc",
+    ])
+    .optional(),
   citationsRange: z.array(z.number()).length(2).optional(),
 });

@@ -4,7 +4,7 @@ import { ResearcherModel } from "../models/researcher";
 import createHttpError from "http-errors";
 import { AdminModel } from "../models/admin";
 import { PublicationFetchingFiltersAdmin } from "../types";
-import { publicationFetchingFiltersValidator } from "../lib/validators";
+import { publicationFetchingFiltersValidatorAdmin } from "../lib/validators";
 import { rankService } from "../lib/services/rankService";
 import { PipelineStage } from "mongoose";
 
@@ -531,7 +531,7 @@ export class AdminStatsController {
       const limit = parseInt(req.query.limit as string) || 10;
       const skip = (page - 1) * limit;
 
-      publicationFetchingFiltersValidator.parse(filters);
+      publicationFetchingFiltersValidatorAdmin.parse(filters);
       const adminDepartments = await AdminModel.findById(admin.id, {
         departments: 1,
       });
@@ -542,6 +542,9 @@ export class AdminStatsController {
       if (department) {
         matchStage["researcher.department"] = department;
       }
+
+      let sortCriteria: Record<string, 1 | -1> = { totalCitations: -1 };
+
       if (filters) {
         if (filters.year) {
           matchStage["publicationDate"] = {
@@ -562,6 +565,10 @@ export class AdminStatsController {
             $gte: filters.citationsRange[0],
             $lte: filters.citationsRange[1],
           };
+        }
+        if (filters.sort) {
+          const [field, order] = filters.sort.split(":");
+          sortCriteria = { [field]: order === "asc" ? 1 : -1 };
         }
       }
 
@@ -590,7 +597,7 @@ export class AdminStatsController {
             googleScholarId: "$researcher.researcher_id",
           },
         },
-        { $sort: { citations: -1 } },
+        { $sort: sortCriteria },
         {
           $facet: {
             metadata: [{ $count: "total" }, { $addFields: { page, limit } }],
