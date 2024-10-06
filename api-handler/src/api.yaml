@@ -52,6 +52,26 @@ paths:
                       address:
                         type: string
 
+  /admin/stats/departments:
+    get:
+      summary: Get all departments
+      tags:
+        - Admin Dashboard Stats
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  departments:
+                    type: array
+                    items:
+                      type: string
+      security:
+        - bearerAuth: []
+
   /admin/stats/card-data:
     get:
       summary: Get card stats data
@@ -89,6 +109,8 @@ paths:
                         type: integer
                       growth:
                         type: string
+                  totalPapers:
+                    type: integer
                   totalResearchers:
                     type: integer
       security:
@@ -143,35 +165,162 @@ paths:
           required: true
           description: Criteria for ranking researchers
         - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
           name: limit
           schema:
             type: integer
             default: 5
-          description: Number of top researchers to retrieve
+          description: Number of top researchers to retrieve per page
       responses:
         "200":
           description: Successful response
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    researcher_id:
-                      type: string
-                    name:
-                      type: string
-                    department:
-                      type: string
-                    totalPapers:
-                      type: integer
-                    totalCitations:
-                      type: integer
-                    hIndex:
-                      type: integer
-                    i10index:
-                      type: integer
+                type: object
+                properties:
+                  researchers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        researcher_id:
+                          type: string
+                        name:
+                          type: string
+                        department:
+                          type: string
+                        totalPapers:
+                          type: integer
+                        totalCitations:
+                          type: integer
+                        hIndex:
+                          type: integer
+                        i10index:
+                          type: integer
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      pages:
+                        type: integer
+      security:
+        - bearerAuth: []
+
+  /admin/stats/top-publications:
+    post:
+      summary: Get top publications data
+      tags:
+        - Admin Dashboard Stats
+      parameters:
+        - in: query
+          name: department
+          schema:
+            type: string
+          description: Filter by department
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of top publications to retrieve per page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                year:
+                  type: array
+                  items:
+                    type: string
+                journal:
+                  type: array
+                  items:
+                    type: string
+                author:
+                  type: array
+                  items:
+                    type: string
+                topic:
+                  type: array
+                  items:
+                    type: string
+                citationsRange:
+                  type: array
+                  items:
+                    type: number
+                  minItems: 2
+                  maxItems: 2
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  publications:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        title:
+                          type: string
+                        year:
+                          type: string
+                        citations:
+                          type: integer
+                        author:
+                          type: string
+                        coAuthors:
+                          type: array
+                          items:
+                            type: string
+                        topics:
+                          type: array
+                          items:
+                            type: string
+                        publicationLink:
+                          type: string
+                        pdfLink:
+                          type: string
+                        description:
+                          type: string
+                        journal:
+                          type: string
+                        department:
+                          type: string
+                        googleScholarId:
+                          type: string
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      pages:
+                        type: integer
       security:
         - bearerAuth: []
 
@@ -273,55 +422,44 @@ paths:
       security:
         - bearerAuth: []
 
-  /admin/stats/top-publications:
-    post:
-      summary: Get top publications data
+  /admin/stats/rank:
+    get:
+      summary: Rank of institute base on total ciations and total publications
       tags:
         - Admin Dashboard Stats
-      parameters:
-        - in: query
-          name: department
-          schema:
-            type: string
-          description: Filter by department
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 10
-          description: Number of top publications to retrieve
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                year:
-                  type: array
-                  items:
-                    type: string
-                journal:
-                  type: array
-                  items:
-                    type: string
-                author:
-                  type: array
-                  items:
-                    type: string
-                topic:
-                  type: array
-                  items:
-                    type: string
-                citationsRange:
-                  type: array
-                  items:
-                    type: number
-                  minItems: 2
-                  maxItems: 2
       responses:
         "200":
           description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rank:
+                    type: Object
+                    properties:
+                      totalPapersRank:
+                        type: integer
+                      totalCitationsRank:
+                        type: integer
+      security:
+        - bearerAuth: []
+
+  /search/researcher:
+    get:
+      tags:
+        - Search
+      description: Retrieve a list of researchers based on a search query.
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: The search term to look for in researcher names, departments, or other indexed fields.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A list of researchers matching the search query.
           content:
             application/json:
               schema:
@@ -329,33 +467,14 @@ paths:
                 items:
                   type: object
                   properties:
-                    title:
+                    name:
                       type: string
-                    year:
+                      example: "Prashant Singh Rana"
+                    scholar_id:
                       type: string
-                    citations:
-                      type: integer
-                    author:
-                      type: string
-                    coAuthors:
-                      type: array
-                      items:
-                        type: string
-                    topics:
-                      type: array
-                      items:
-                        type: string
-                    publicationLink:
-                      type: string
-                    pdfLink:
-                      type: string
-                    description:
-                      type: string
-                    journal:
-                      type: string
+                      example: "MNj1Dw4AAAAJ"
                     department:
                       type: string
-                    googleScholarId:
-                      type: string
+                      example: "csed"
       security:
         - bearerAuth: []

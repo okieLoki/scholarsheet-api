@@ -32,10 +32,16 @@ export type ArticleExtended = {
   pdfLink: string;
   researcher_id?: string;
 };
-export type PublicationFetchingFilters = {
+export type PublicationFetchingFiltersAdmin = {
   year?: string[];
   journal?: string[];
   author?: string[];
+  topic?: string[];
+  citationsRange?: [number, number];
+};
+export type PublicationFetchingFiltersResearcher = {
+  year?: string[];
+  journal?: string[];
   topic?: string[];
   citationsRange?: [number, number];
 };

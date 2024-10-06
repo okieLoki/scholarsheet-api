@@ -59,8 +59,14 @@ class StatsRouter {
       AdminStatsController.prototype.getTopPublicationsData
     );
 
+    this.router.get(
+      "/rank", 
+      adminAuthHandler,
+      AdminStatsController.prototype.getRankData
+    )
+
     return this.router;
   }
 }
 
-export const statsRouter = new StatsRouter();
+export const adminStatsRouter = new StatsRouter();

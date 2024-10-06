@@ -61,6 +61,8 @@ export const researcherSchema = new Schema({
   ],
 });
 
+researcherSchema.index({ name: "text", department: "text" });
+
 export type ResearcherType = InferSchemaType<typeof researcherSchema>;
 export const ResearcherModel = mongoose.model<ResearcherType>(
   "Researcher",

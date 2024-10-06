@@ -3,9 +3,10 @@ import { PaperModel } from "../models/paper";
 import { ResearcherModel } from "../models/researcher";
 import createHttpError from "http-errors";
 import { AdminModel } from "../models/admin";
-import { PublicationFetchingFilters } from "../types";
+import { PublicationFetchingFiltersAdmin } from "../types";
 import { publicationFetchingFiltersValidator } from "../lib/validators";
-
+import { rankService } from "../lib/services/rankService";
+import { PipelineStage } from "mongoose";
 
 export class AdminStatsController {
   async getDepartments(req: Request, res: Response, next: NextFunction) {
@@ -21,7 +22,7 @@ export class AdminStatsController {
         }
       ).lean();
 
-      res.json({
+      res.status(200).json({
         departments: departments[0].departments,
       });
     } catch (error) {
@@ -43,7 +44,7 @@ export class AdminStatsController {
       if (department && !adminDepartments?.departments.includes(department))
         throw new createHttpError.BadRequest("Invalid department");
 
-      const matchStage: any = { admin_id: admin.id };
+      const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
       }
@@ -105,6 +106,7 @@ export class AdminStatsController {
                   $cond: [{ $eq: ["$_id", lastYear] }, "$publicationCount", 0],
                 },
               },
+              totalPapers: { $sum: "$publicationCount" },
             },
           },
           {
@@ -162,6 +164,7 @@ export class AdminStatsController {
                   ],
                 },
               },
+              totalPapers: 1,
             },
           },
         ]),
@@ -189,13 +192,14 @@ export class AdminStatsController {
           [lastYear]: 0,
           growth: null,
         },
+        totalPapers: paperStats[0]?.totalPapers || 0,
         totalResearchers: researcherCount,
       };
 
       result.citations.growth = formatGrowth(result.citations.growth);
       result.publications.growth = formatGrowth(result.publications.growth);
 
-      res.json(result);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
@@ -220,12 +224,12 @@ export class AdminStatsController {
         );
       }
 
-      const matchStage: any = { admin_id: admin.id };
+      const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
       }
 
-      const aggregationPipeline = [
+      const aggregationPipeline: PipelineStage[] = [
         { $match: matchStage },
         {
           $group: {
@@ -244,7 +248,6 @@ export class AdminStatsController {
         { $sort: { year: -1 } },
       ];
 
-      // @ts-ignore
       const result = await PaperModel.aggregate(aggregationPipeline);
 
       const formattedResult = result.reduce((acc, item) => {
@@ -252,7 +255,7 @@ export class AdminStatsController {
         return acc;
       }, {} as Record<string, number>);
 
-      res.json(formattedResult);
+      res.status(200).json(formattedResult);
     } catch (error) {
       next(error);
     }
@@ -263,12 +266,13 @@ export class AdminStatsController {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
       const criteria = req.query.criteria as string;
+      const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 5;
+      const skip = (page - 1) * limit;
 
       const adminDepartments = await AdminModel.findById(admin.id, {
         departments: 1,
       });
-
       if (department && !adminDepartments?.departments.includes(department))
         throw new createHttpError.BadRequest("Invalid department");
 
@@ -282,12 +286,12 @@ export class AdminStatsController {
         );
       }
 
-      const matchStage: any = { admin_id: admin.id };
+      const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
       }
 
-      const aggregationPipeline = [
+      const aggregationPipeline: PipelineStage[] = [
         { $match: matchStage },
         {
           $group: {
@@ -343,12 +347,27 @@ export class AdminStatsController {
           },
         },
         { $sort: { [criteria]: -1 } },
-        { $limit: limit },
+        {
+          $facet: {
+            metadata: [{ $count: "total" }, { $addFields: { page, limit } }],
+            data: [{ $skip: skip }, { $limit: limit }],
+          },
+        },
       ];
 
-      // @ts-ignore
       const result = await PaperModel.aggregate(aggregationPipeline);
-      res.json(result);
+
+      const responseData = {
+        researchers: result[0].data,
+        pagination: {
+          total: result[0].metadata[0]?.total || 0,
+          page,
+          limit,
+          pages: Math.ceil((result[0].metadata[0]?.total || 0) / limit),
+        },
+      };
+
+      res.status(200).json(responseData);
     } catch (error) {
       next(error);
     }
@@ -366,12 +385,12 @@ export class AdminStatsController {
       if (department && !adminDepartments?.departments.includes(department))
         throw new createHttpError.BadRequest("Invalid department");
 
-      const matchStage: any = { admin_id: admin.id };
+      const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
       }
 
-      const aggregationPipeline = [
+      const aggregationPipeline: PipelineStage[] = [
         { $match: matchStage },
         { $unwind: "$tags" },
         {
@@ -383,9 +402,8 @@ export class AdminStatsController {
         { $sort: { count: -1 } },
       ];
 
-      // @ts-ignore
       const result = await PaperModel.aggregate(aggregationPipeline);
-      res.json(result);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
@@ -407,12 +425,12 @@ export class AdminStatsController {
       if (department && !adminDepartments?.departments.includes(department))
         throw new createHttpError.BadRequest("Invalid department");
 
-      const matchStage: any = { admin_id: admin.id };
+      const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
       }
 
-      const aggregationPipeline = [
+      const aggregationPipeline: PipelineStage[] = [
         { $match: matchStage },
         {
           $group: {
@@ -423,9 +441,8 @@ export class AdminStatsController {
         { $sort: { count: -1 } },
       ];
 
-      // @ts-ignore
       const result = await PaperModel.aggregate(aggregationPipeline);
-      res.json(result);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
@@ -443,12 +460,12 @@ export class AdminStatsController {
       if (department && !adminDepartments?.departments.includes(department))
         throw new createHttpError.BadRequest("Invalid department");
 
-      const matchStage: any = { admin_id: admin.id };
+      const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
       }
 
-      const aggregationPipeline = [
+      const aggregationPipeline: PipelineStage[] = [
         { $match: matchStage },
         { $unwind: { path: "$tags", preserveNullAndEmptyArrays: true } },
         {
@@ -494,9 +511,8 @@ export class AdminStatsController {
         },
       ];
 
-      // @ts-ignore
       const result = await PaperModel.aggregate(aggregationPipeline);
-      res.json(result);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }
@@ -510,47 +526,22 @@ export class AdminStatsController {
     try {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
-      const filters = req.body as PublicationFetchingFilters;
+      const filters = req.body as PublicationFetchingFiltersAdmin;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const skip = (page - 1) * limit;
 
       publicationFetchingFiltersValidator.parse(filters);
-
       const adminDepartments = await AdminModel.findById(admin.id, {
         departments: 1,
       });
-
       if (department && !adminDepartments?.departments.includes(department))
         throw new createHttpError.BadRequest("Invalid department");
 
-      // validate filters
-      if (filters.year && !Array.isArray(filters.year)) {
-        throw new createHttpError.BadRequest("Invalid year filter");
-      }
-      if (filters.journal && !Array.isArray(filters.journal)) {
-        throw new createHttpError.BadRequest("Invalid journal filter");
-      }
-      if (filters.author && !Array.isArray(filters.author)) {
-        throw new createHttpError.BadRequest("Invalid author filter");
-      }
-      if (filters.topic && !Array.isArray(filters.topic)) {
-        throw new createHttpError.BadRequest("Invalid topic filter");
-      }
-      if (filters.citationsRange && !Array.isArray(filters.citationsRange)) {
-        throw new createHttpError.BadRequest("Invalid citationsRange filter");
-      }
-      if (filters.citationsRange && filters.citationsRange.length !== 2) {
-        throw new createHttpError.BadRequest(
-          "Invalid citationsRange filter, it should be an array of length 2"
-        );
-      }
-
-      const limit = parseInt(req.query.limit as string) || 10;
-
-      const matchStage: any = { admin_id: admin.id };
-
+      const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
       }
-
       if (filters) {
         if (filters.year) {
           matchStage["publicationDate"] = {
@@ -574,10 +565,11 @@ export class AdminStatsController {
         }
       }
 
-      const aggregationPipeline = [
+      const aggregationPipeline: PipelineStage[] = [
         { $match: matchStage },
         {
           $project: {
+            _id: 0,
             title: 1,
             year: { $substr: ["$publicationDate", 0, 4] },
             citations: "$totalCitations",
@@ -599,12 +591,38 @@ export class AdminStatsController {
           },
         },
         { $sort: { citations: -1 } },
-        { $limit: limit },
+        {
+          $facet: {
+            metadata: [{ $count: "total" }, { $addFields: { page, limit } }],
+            data: [{ $skip: skip }, { $limit: limit }],
+          },
+        },
       ];
 
-      // @ts-ignore
       const result = await PaperModel.aggregate(aggregationPipeline);
-      res.json(result);
+
+      const responseData = {
+        publications: result[0].data,
+        pagination: {
+          total: result[0].metadata[0]?.total || 0,
+          page,
+          limit,
+          pages: Math.ceil((result[0].metadata[0]?.total || 0) / limit),
+        },
+      };
+
+      res.status(200).json(responseData);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getRankData(req: Request, res: Response, next: NextFunction) {
+    try {
+      const admin = req.admin;
+      const ranks = await rankService.getRankOfInstitute(String(admin.id));
+
+      res.status(200).json(ranks);
     } catch (error) {
       next(error);
     }
