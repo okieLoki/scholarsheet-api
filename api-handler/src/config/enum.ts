@@ -3,6 +3,21 @@ const queues = {
   CALCULATION_QUEUE: "calculations-queue",
 };
 
-Object.freeze(queues);
+const notificationStatus = {
+  ACKNOWLEDGED: "acknowledged",
+  UNACKNOWLEDGED: "unacknowledged",
+};
 
-export { queues };
+const socketEvents = {
+  CONNECTION: "connection",
+  DISCONNECT: "disconnect",
+  ADMIN_NOTIFICATION: "admin-notification",
+  ADMIN_NOTIFICATION_ACKNOWLEDGE: "admin-notification-acknowledge",
+};
+
+
+Object.freeze(queues);
+Object.freeze(notificationStatus);
+Object.freeze(socketEvents);
+
+export { queues, notificationStatus, socketEvents };

@@ -1,14 +1,14 @@
 import express, { Application } from "express";
 import { config } from "./config";
-import morgan from "morgan";
-import { adminRouter } from "./routes/adminRoutes";
 import { errorHandler } from "./middleware/errorHandler";
 import { databaseConnection } from "./config/mongodb";
 import { rabbitmq } from "./config/rabbitmq";
 import { calculatorService } from "./services/calculator-service/calculator.service";
-import { statsRouter } from "./routes/statsRoutes";
-import { researcherProfileRouter } from "./routes/reseacherRoute";
 import { initializeRoutes } from "./routes/routes";
+import { createServer } from "http";
+import { socketService } from "./config/socket";
+import morgan from "morgan";
+import { l } from "./config/logger";
 
 const init = async () => {
   const app: Application = express();
@@ -21,16 +21,19 @@ const init = async () => {
   app.use(express.json());
   app.use(morgan("dev"));
 
-  // ROUTES
   initializeRoutes(app);
 
   app.use(errorHandler);
 
-  // RABBMITMQ
+  const httpServer = createServer(app);
+
+  socketService.init(httpServer);
+
   await calculatorService.listenForCalculatorEvents();
 
-  app.listen(config.PORT, async () => {
-    console.log(`Server is running on port ${config.PORT}`);
+  httpServer.listen(config.PORT, async () => {
+    l.info(`Server is running on port ${config.PORT}`);
   });
 };
+
 init();

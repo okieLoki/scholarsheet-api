@@ -4,6 +4,8 @@ import { PaperModel } from "../../models/paper";
 import { ResearcherModel } from "../../models/researcher";
 import { l } from "../../config/logger";
 import axios from "axios";
+import { socketService } from "../../config/socket";
+import mongoose from "mongoose";
 
 class CalculatorService {
   public async listenForCalculatorEvents() {
@@ -21,7 +23,7 @@ class CalculatorService {
             "researcher.researcher_id": researcher_id,
           });
 
-          await ResearcherModel.updateOne(
+          const updatedReseacher = await ResearcherModel.findOneAndUpdate(
             {
               _id: researcher_id,
             },
@@ -32,40 +34,40 @@ class CalculatorService {
             }
           );
 
-          const departmentOfTheResearcher = await ResearcherModel.findOne(
-            {
-              _id: researcher_id,
-            },
-            {
-              department: 1,
-              _id: 0,
-            }
-          );
-
           // format date as we do not receive perfect date every time and add tags
-          for (const paper of papers) {
+          const paperPromises = papers.map(async (paper) => {
             const yearOfPublication = paper.publicationDate.split("/")[0];
 
-            const response = await axios.post("http://localhost:5000/predict", {
-              title: paper.title,
-              description: paper.description,
-            });
-
-            const tags = response.data.predicted_tags;
-
-            await PaperModel.updateOne(
+            const predictResponse = await axios.post(
+              "http://localhost:5000/predict",
               {
-                _id: paper._id,
-              },
+                title: paper.title,
+                description: paper.description,
+              }
+            );
+
+            const tags = predictResponse.data.predicted_tags;
+
+            return PaperModel.updateOne(
+              { _id: paper._id },
               {
                 $set: {
                   tags,
                   publicationDate: yearOfPublication,
-                  "researcher.department": departmentOfTheResearcher!.department,
+                  "researcher.department":
+                  updatedReseacher?.department,
                 },
               }
             );
-          }
+          });
+
+          await Promise.all([
+            paperPromises,
+            socketService.sendNotification(
+              updatedReseacher?.admin_id as mongoose.Types.ObjectId,
+              `Successfully imported data for ${updatedReseacher?.name}`
+            ),
+          ]);
 
           rabbitmq.ack(msg);
         }

@@ -27,6 +27,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.3.0",
     "morgan": "^1.10.0",
+    "nanoid": "^5.0.7",
     "nodemailer": "^6.9.13",
     "npm": "^10.5.2",
     "pdfkit": "^0.15.0",
@@ -36,8 +37,10 @@
     "puppeteer-extra-plugin-adblocker": "^2.13.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "rabbitmq-client": "^4.5.4",
+    "socket.io": "^4.8.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "uuid": "^10.0.0",
     "yamljs": "^0.3.0",
     "zod": "^3.22.5"
   },

@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { AdminModel } from "../models/admin";
 import { config } from "../config";
 import mongoose from "mongoose";
+import { AdminInterface } from "../types";
 
 declare global {
   namespace Express {
@@ -13,17 +14,11 @@ declare global {
   }
 }
 
-interface AdminInterface {
-  id: mongoose.Types.ObjectId | string;
-  email: string;
-}
-
 export const adminAuthHandler = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-
   console.log("adminAuthHandler");
   try {
     if (!req.headers.authorization)
@@ -49,5 +44,18 @@ export const adminAuthHandler = async (
     next();
   } catch (error) {
     next(error);
+  }
+};
+
+export const validateAdminToken = async (jwtToken: string) => {
+  try {
+    const decoded = jwt.verify(jwtToken, config.JWT_SECRET) as AdminInterface;
+    const admin = await AdminModel.findById(decoded.id);
+    if (!admin?.verified) {
+      return null;
+    }
+    return decoded.id;
+  } catch (error) {
+    return null;
   }
 };

@@ -61,3 +61,7 @@ export type PublicationFetchingFiltersResearcher = {
   topic?: string[];
   citationsRange?: [number, number];
 };
+export interface AdminInterface {
+  id: mongoose.Types.ObjectId | string;
+  email: string;
+}

@@ -11,7 +11,7 @@ class Config {
   public readonly RABBITMQ_URL: string;
 
   constructor() {
-    this.PORT = Number(process.env.PORT) || 8080;
+    this.PORT = Number(process.env.PORT) || 8000;
     this.DATABASE_URL = process.env.DATABASE_URL || "";
     this.SMTP_USER = process.env.SMTP_USER || "";
     this.SMTP_PASS = process.env.SMTP_PASS || "";

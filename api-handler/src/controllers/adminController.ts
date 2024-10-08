@@ -6,18 +6,18 @@ import {
   loginAccountValidator,
 } from "../lib/validators";
 import { sendEmailVerificationMail } from "../lib/services/emailService";
+import { config } from "../config";
+import { ResearcherModel } from "../models/researcher";
+import { ResearcherData } from "../types";
+import { researcherScrapper } from "../lib/scrapper/researcherScapper";
+import { rabbitmq } from "../config/rabbitmq";
+import { queues } from "../config/enum";
+import { v4 as uuidv4 } from "uuid";
+import mongoose from "mongoose";
 import createError from "http-errors";
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { config } from "../config";
-import { ResearcherModel } from "../models/researcher";
-import { ResearcherData } from "../types";
-import mongoose from "mongoose";
-import { researcherScrapper } from "../lib/scrapper/researcherScapper";
-import { rabbitmq } from "../config/rabbitmq";
-import { queues } from "../config/enum";
-
 declare global {
   namespace Express {
     interface Request {
@@ -53,6 +53,7 @@ export class AdminController {
       await AdminModel.create({
         institute_name,
         email,
+        uuid: uuidv4(),
         password: hashedPassword,
         address,
         email_verification_token: emailVerificationToken,
@@ -178,8 +179,10 @@ export class AdminController {
       }
 
       const adminDepartments = await AdminModel.findById(admin.id, {
-        department: 1,
+        departments: 1,
       });
+
+      console.log(adminDepartments);
 
       if (!adminDepartments?.departments.includes(department))
         throw new createError.BadRequest(
