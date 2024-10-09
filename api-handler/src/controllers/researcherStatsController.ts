@@ -5,6 +5,7 @@ import { PublicationFetchingFiltersResearcher } from "../types";
 import { publicationFetchingFiltersValidatorResearcher } from "../lib/validators";
 import mongoose, { PipelineStage } from "mongoose";
 import createHttpError from "http-errors";
+import { config } from "../config";
 
 export class ResearcherStatsController {
   public async getResearcherData(
@@ -148,7 +149,12 @@ export class ResearcherStatsController {
       next(error);
     }
   }
-  async getAnalyticsGraphData(req: Request, res: Response, next: NextFunction) {
+
+  public async getAnalyticsGraphData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const admin_id = req.admin.id as string;
       const scholar_id = req.query.scholar_id as string;
@@ -283,7 +289,7 @@ export class ResearcherStatsController {
     }
   }
 
-  async getTopResearchersInTheSameDepartmentData(
+  public async getTopResearchersInTheSameDepartmentData(
     req: Request,
     res: Response,
     next: NextFunction
@@ -294,6 +300,12 @@ export class ResearcherStatsController {
       const criteria = req.query.criteria as string;
       const limit = parseInt(req.query.limit as string) || 5;
       const page = parseInt(req.query.page as string) || 1;
+
+      if (limit > config.API_LIMIT) {
+        throw new createHttpError.BadRequest(
+          `Limit exceeds the maximum limit of ${config.API_LIMIT}`
+        );
+      }
 
       if (!scholar_id) {
         throw new createHttpError.BadRequest("Scholar ID is required");
@@ -407,16 +419,21 @@ export class ResearcherStatsController {
     }
   }
 
-  async getReseachTopicsData(req: Request, res: Response, next: NextFunction) {
+  public async getReseachTopicsData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const admin_id = req.admin.id as string;
       const scholar_id = req.query.scholar_id as string;
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
 
       if (!scholar_id) {
         throw new createHttpError.BadRequest("Scholar ID is required");
       }
 
-      const tags = await PaperModel.aggregate([
+      const pipeline: PipelineStage[] = [
         {
           $match: {
             "researcher.scholar_id": scholar_id,
@@ -435,7 +452,17 @@ export class ResearcherStatsController {
         {
           $sort: { count: -1 },
         },
-      ]);
+      ];
+
+      if (year) {
+        pipeline.unshift({
+          $match: {
+            publicationDate: { $regex: `^${year}` },
+          },
+        });
+      }
+
+      const tags = await PaperModel.aggregate(pipeline);
 
       res.status(200).json(tags);
     } catch (error) {
@@ -443,7 +470,7 @@ export class ResearcherStatsController {
     }
   }
 
-  async getJournalDiversityData(
+  public async getJournalDiversityData(
     req: Request,
     res: Response,
     next: NextFunction
@@ -451,12 +478,13 @@ export class ResearcherStatsController {
     try {
       const admin_id = req.admin.id as string;
       const scholar_id = req.query.scholar_id as string;
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
 
       if (!scholar_id) {
         throw new createHttpError.BadRequest("Scholar ID is required");
       }
 
-      const journals = await PaperModel.aggregate([
+      const pipeline: PipelineStage[] = [
         {
           $match: {
             "researcher.scholar_id": scholar_id,
@@ -472,7 +500,17 @@ export class ResearcherStatsController {
         {
           $sort: { count: -1 },
         },
-      ]);
+      ];
+
+      if (year) {
+        pipeline.unshift({
+          $match: {
+            publicationDate: { $regex: `^${year}` },
+          },
+        });
+      }
+
+      const journals = await PaperModel.aggregate(pipeline);
 
       res.status(200).json(journals);
     } catch (error) {
@@ -480,7 +518,11 @@ export class ResearcherStatsController {
     }
   }
 
-  async getPreFilterData(req: Request, res: Response, next: NextFunction) {
+  public async getPreFilterData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const admin_id = req.admin.id as string;
       const scholar_id = req.query.scholar_id as string;
@@ -553,7 +595,7 @@ export class ResearcherStatsController {
     }
   }
 
-  async getTopPublicationsData(
+  public async getTopPublicationsData(
     req: Request,
     res: Response,
     next: NextFunction
@@ -565,6 +607,12 @@ export class ResearcherStatsController {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const skip = (page - 1) * limit;
+
+      if (limit > config.API_LIMIT) {
+        throw new createHttpError.BadRequest(
+          `Limit exceeds the maximum limit of ${config.API_LIMIT}`
+        );
+      }
 
       publicationFetchingFiltersValidatorResearcher.parse(filters);
 

@@ -30,8 +30,10 @@ paths:
               properties:
                 email:
                   type: string
+                  default: "ukashyap_be21@thapar.edu"
                 password:
                   type: string
+                  default: "12345678"
       responses:
         "200":
           description: Successful response
@@ -176,6 +178,12 @@ paths:
             type: integer
             default: 5
           description: Number of top researchers to retrieve per page
+        - in: query
+          name: year
+          schema:
+            type: string
+            default: 2024
+          description: Year to filter data
       responses:
         "200":
           description: Successful response
@@ -351,6 +359,12 @@ paths:
           schema:
             type: string
           description: Filter by department
+        - in: query
+          name: year
+          schema:
+            type: string
+            default: 2024
+          description: Year to filter data
       responses:
         "200":
           description: Successful response
@@ -735,6 +749,11 @@ paths:
           schema:
             type: string
           description: Scholar ID of the researcher
+        - in: query
+          name: year  
+          schema:
+            type: string
+            default: 2024
       responses:
         "200":
           description: Successful response
@@ -764,6 +783,11 @@ paths:
           schema:
             type: string
           description: Scholar ID of the researcher
+        - in: query
+          name: year  
+          schema:
+            type: string
+            default: 2024
       responses:
         "200":
           description: Successful response

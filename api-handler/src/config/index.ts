@@ -9,6 +9,7 @@ class Config {
   public readonly BASE_URL: string;
   public readonly LOG_LEVEL: string;
   public readonly RABBITMQ_URL: string;
+  public readonly API_LIMIT: number = 50;
 
   constructor() {
     this.PORT = Number(process.env.PORT) || 8000;

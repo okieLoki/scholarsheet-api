@@ -7,6 +7,7 @@ import { PublicationFetchingFiltersAdmin } from "../types";
 import { publicationFetchingFiltersValidatorAdmin } from "../lib/validators";
 import { rankService } from "../lib/services/rankService";
 import { PipelineStage } from "mongoose";
+import { config } from "../config";
 
 export class AdminStatsController {
   async getDepartments(req: Request, res: Response, next: NextFunction) {
@@ -266,9 +267,18 @@ export class AdminStatsController {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
       const criteria = req.query.criteria as string;
+
+      // YEAR means hIndex, iIndex, totalCitations, totalPapers for that year
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 5;
       const skip = (page - 1) * limit;
+
+      if (limit > config.API_LIMIT) {
+        throw new createHttpError.BadRequest(
+          `Limit exceeds the maximum limit of ${config.API_LIMIT}`
+        );
+      }
 
       const adminDepartments = await AdminModel.findById(admin.id, {
         departments: 1,
@@ -289,6 +299,9 @@ export class AdminStatsController {
       const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
+      }
+      if (year) {
+        matchStage["publicationDate"] = new RegExp(`^${year}`);
       }
 
       const aggregationPipeline: PipelineStage[] = [
@@ -377,6 +390,7 @@ export class AdminStatsController {
     try {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
 
       const adminDepartments = await AdminModel.findById(admin.id, {
         departments: 1,
@@ -388,6 +402,9 @@ export class AdminStatsController {
       const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
+      }
+      if (year) {
+        matchStage["publicationDate"] = new RegExp(`^${year}`);
       }
 
       const aggregationPipeline: PipelineStage[] = [
@@ -417,6 +434,7 @@ export class AdminStatsController {
     try {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
 
       const adminDepartments = await AdminModel.findById(admin.id, {
         departments: 1,
@@ -428,6 +446,9 @@ export class AdminStatsController {
       const matchStage = { admin_id: admin.id };
       if (department) {
         matchStage["researcher.department"] = department;
+      }
+      if(year){
+        matchStage["publicationDate"] = new RegExp(`^${year}`);
       }
 
       const aggregationPipeline: PipelineStage[] = [
@@ -530,6 +551,10 @@ export class AdminStatsController {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const skip = (page - 1) * limit;
+
+      if(limit > config.API_LIMIT){
+        throw new createHttpError.BadRequest(`Limit exceeds the maximum limit of ${config.API_LIMIT}`);
+      }
 
       publicationFetchingFiltersValidatorAdmin.parse(filters);
       const adminDepartments = await AdminModel.findById(admin.id, {
