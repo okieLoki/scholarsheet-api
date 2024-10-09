@@ -164,7 +164,7 @@ export class AdminController {
   public async addReseacher(req: Request, res: Response, next: NextFunction) {
     try {
       const admin = req.admin;
-      const { scholar_id, email, department, positions } =
+      const { scholar_id, email, department, positions, gender } =
         addResearcherValidator.parse(req.body);
 
       const researcher = await ResearcherModel.findOne({ scholar_id });
@@ -181,8 +181,6 @@ export class AdminController {
       const adminDepartments = await AdminModel.findById(admin.id, {
         departments: 1,
       });
-
-      console.log(adminDepartments);
 
       if (!adminDepartments?.departments.includes(department))
         throw new createError.BadRequest(
@@ -202,6 +200,7 @@ export class AdminController {
         h_index: reseacherData.hIndex,
         i_index: reseacherData.i10Index,
         name: reseacherData.name,
+        gender
       });
 
       await rabbitmq.publish(

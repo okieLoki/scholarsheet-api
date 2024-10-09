@@ -452,28 +452,80 @@ paths:
       security:
         - bearerAuth: []
 
-  /admin/stats/rank:
-    get:
-      summary: Rank of institute base on total ciations and total publications
-      tags:
-        - Admin Dashboard Stats
-      responses:
-        "200":
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  rank:
-                    type: Object
-                    properties:
-                      totalPapersRank:
-                        type: integer
-                      totalCitationsRank:
-                        type: integer
-      security:
-        - bearerAuth: []
+  /admin/stats/gender-diversity:
+      get:
+        summary: Get gender distribution data
+        tags:
+          - Admin Dashboard Stats
+        parameters:
+          - in: query
+            name: department
+            schema:
+              type: string
+            description: Filter by department (optional)
+        responses:
+          "200":
+            description: Successful response
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    distribution:
+                      type: object
+                      properties:
+                        male:
+                          type: integer
+                        female:
+                          type: integer
+                        others:
+                          type: integer
+                    percentages:
+                      type: object
+                      properties:
+                        male:
+                          type: string
+                        female:
+                          type: string
+                        others:
+                          type: string
+                    totalResearchers:
+                      type: integer
+        security:
+          - bearerAuth: []
+
+  /admin/stats/report:
+      get:
+        summary: Generate pdf report for data
+        tags:
+          - Admin Dashboard Stats
+        parameters:
+          - in: query
+            name: department
+            schema:
+              type: string
+            description: Department to generate report for (Optional)
+          - in: query
+            name: year
+            schema:
+              type: string
+            description: Year to generate report for (Optional)
+        responses:
+          "200":
+            description: Successful response
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    fileUrl: 
+                      type: string
+                    message: 
+                      type: string
+                      default: "Report generated and uploaded successfully"
+        security:
+          - bearerAuth: []
+
 
   /search/researcher:
     get:

@@ -10,6 +10,9 @@ class Config {
   public readonly LOG_LEVEL: string;
   public readonly RABBITMQ_URL: string;
   public readonly API_LIMIT: number = 50;
+  public readonly CLOUDINARY_CLOUD_NAME: string;
+  public readonly CLOUDINARY_API_KEY: string;
+  public readonly CLOUDINARY_API_SECRET: string;
 
   constructor() {
     this.PORT = Number(process.env.PORT) || 8000;
@@ -20,6 +23,9 @@ class Config {
     this.BASE_URL = process.env.BASE_URL || `http://localhost:${this.PORT}`;
     this.LOG_LEVEL = process.env.LOG_LEVEL || "info";
     this.RABBITMQ_URL = process.env.RABBITMQ_URL || "";
+    this.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || "";
+    this.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || "";
+    this.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || "";
   }
 
   public verifyConfig(): void {

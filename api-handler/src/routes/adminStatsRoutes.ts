@@ -65,6 +65,18 @@ class StatsRouter {
       AdminStatsController.prototype.getRankData
     )
 
+    this.router.get(
+      "/gender-diversity",
+      adminAuthHandler,
+      AdminStatsController.prototype.getGenderDistributionData
+    )
+
+    this.router.get(
+      '/report', 
+      adminAuthHandler,
+      AdminStatsController.prototype.generateReport
+    )
+
     return this.router;
   }
 }

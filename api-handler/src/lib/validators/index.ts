@@ -56,6 +56,7 @@ export const addResearcherValidator = z.object({
       })
     )
     .optional(),
+  gender: z.enum(["male", "female", "other"]),
 });
 
 export const publicationFetchingFiltersValidatorAdmin = z.object({

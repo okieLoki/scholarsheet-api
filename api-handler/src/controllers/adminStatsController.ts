@@ -8,9 +8,16 @@ import { publicationFetchingFiltersValidatorAdmin } from "../lib/validators";
 import { rankService } from "../lib/services/rankService";
 import { PipelineStage } from "mongoose";
 import { config } from "../config";
+import { adminStatsService } from "../lib/services/adminStatsService";
+import pdf from "html-pdf";
+import { promisify } from "util";
+import fs, { rmSync } from "fs";
+import path from "path";
+import puppeteer from "puppeteer";
+import { cloudinaryService } from "../lib/services/cloudinaryService";
 
 export class AdminStatsController {
-  async getDepartments(req: Request, res: Response, next: NextFunction) {
+  public async getDepartments(req: Request, res: Response, next: NextFunction) {
     try {
       const admin = req.admin;
       const departments = await AdminModel.find(
@@ -31,7 +38,11 @@ export class AdminStatsController {
     }
   }
 
-  async getCardStatsData(req: Request, res: Response, next: NextFunction) {
+  public async getCardStatsData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
@@ -206,7 +217,11 @@ export class AdminStatsController {
     }
   }
 
-  async getAnalyticsGraphData(req: Request, res: Response, next: NextFunction) {
+  public async getAnalyticsGraphData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
@@ -262,7 +277,11 @@ export class AdminStatsController {
     }
   }
 
-  async getTopResearchersData(req: Request, res: Response, next: NextFunction) {
+  public async getTopResearchersData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
@@ -386,7 +405,11 @@ export class AdminStatsController {
     }
   }
 
-  async getResearchTopicsData(req: Request, res: Response, next: NextFunction) {
+  public async getResearchTopicsData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
@@ -426,7 +449,7 @@ export class AdminStatsController {
     }
   }
 
-  async getJournalDiversityData(
+  public async getJournalDiversityData(
     req: Request,
     res: Response,
     next: NextFunction
@@ -447,7 +470,7 @@ export class AdminStatsController {
       if (department) {
         matchStage["researcher.department"] = department;
       }
-      if(year){
+      if (year) {
         matchStage["publicationDate"] = new RegExp(`^${year}`);
       }
 
@@ -469,7 +492,11 @@ export class AdminStatsController {
     }
   }
 
-  async getPreFilterData(req: Request, res: Response, next: NextFunction) {
+  public async getPreFilterData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
     try {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
@@ -539,7 +566,7 @@ export class AdminStatsController {
     }
   }
 
-  async getTopPublicationsData(
+  public async getTopPublicationsData(
     req: Request,
     res: Response,
     next: NextFunction
@@ -552,8 +579,10 @@ export class AdminStatsController {
       const limit = parseInt(req.query.limit as string) || 10;
       const skip = (page - 1) * limit;
 
-      if(limit > config.API_LIMIT){
-        throw new createHttpError.BadRequest(`Limit exceeds the maximum limit of ${config.API_LIMIT}`);
+      if (limit > config.API_LIMIT) {
+        throw new createHttpError.BadRequest(
+          `Limit exceeds the maximum limit of ${config.API_LIMIT}`
+        );
       }
 
       publicationFetchingFiltersValidatorAdmin.parse(filters);
@@ -649,12 +678,142 @@ export class AdminStatsController {
     }
   }
 
-  async getRankData(req: Request, res: Response, next: NextFunction) {
+  public async getRankData(req: Request, res: Response, next: NextFunction) {
     try {
       const admin = req.admin;
       const ranks = await rankService.getRankOfInstitute(String(admin.id));
 
       res.status(200).json(ranks);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public async getGenderDistributionData(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
+      const admin = req.admin;
+      const { department } = req.query as {
+        department?: string;
+      };
+
+      const adminDepartments = await AdminModel.findById(admin.id, {
+        departments: 1,
+      });
+
+      if (department && !adminDepartments?.departments.includes(department))
+        throw new createHttpError.BadRequest("Invalid department");
+
+      const matchStage: any = { admin_id: admin.id };
+
+      if (department) {
+        matchStage["department"] = department;
+      }
+
+      const aggregationPipeline: PipelineStage[] = [
+        { $match: matchStage },
+        {
+          $group: {
+            _id: "$gender",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            gender: "$_id",
+            count: 1,
+          },
+        },
+      ];
+
+      const result = await ResearcherModel.aggregate(aggregationPipeline);
+
+      const genderDistribution = {
+        male: 0,
+        female: 0,
+        others: 0,
+      };
+
+      result.forEach((item) => {
+        if (item.gender in genderDistribution) {
+          genderDistribution[item.gender as keyof typeof genderDistribution] =
+            item.count;
+        } else {
+          genderDistribution.others += item.count;
+        }
+      });
+
+      const totalResearchers = Object.values(genderDistribution).reduce(
+        (a, b) => a + b,
+        0
+      );
+
+      const genderPercentages = Object.entries(genderDistribution).reduce(
+        (acc, [gender, count]) => {
+          acc[gender as keyof typeof genderDistribution] =
+            totalResearchers > 0
+              ? ((count / totalResearchers) * 100).toFixed(2) + "%"
+              : "0%";
+          return acc;
+        },
+        {} as Record<keyof typeof genderDistribution, string>
+      );
+
+      res.status(200).json({
+        distribution: genderDistribution,
+        percentages: genderPercentages,
+        totalResearchers,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public async generateReport(req: Request, res: Response, next: NextFunction) {
+    try {
+      const admin = req.admin;
+      const {department, year} = req.query as {
+        department?: string;
+        year?: number;
+      }
+
+      const htmlReport = await adminStatsService.generateReport(
+        admin.id as string, 
+        department,
+        year
+      );
+      const browser = await puppeteer.launch();
+      const page = await browser.newPage();
+      await page.setContent(htmlReport, { waitUntil: "networkidle0" });
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        margin: {
+          top: "1in",
+          right: "1in",
+          bottom: "1in",
+          left: "1in",
+        },
+      });
+      await browser.close();
+
+      const randomString = Math.random().toString(36).substring(7);
+      
+      const fileName = `admin-report-${Date.now()}-${randomString}.pdf`;
+      const filePath = path.join(__dirname, "files", fileName);
+      fs.writeFileSync(filePath, pdfBuffer);
+
+      const fileUrl = await cloudinaryService.uploadFile(filePath, "reports");
+
+      fs.unlinkSync(filePath);
+
+      res.status(200).json({
+        fileUrl: fileUrl,
+        message: "Report generated and uploaded successfully",
+      });
     } catch (error) {
       next(error);
     }
