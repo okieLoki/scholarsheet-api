@@ -47,11 +47,11 @@ export const researcherSchema = new Schema({
   positions: [
     {
       start: {
-        type: Date,
+        type: String,
         required: true,
       },
       end: {
-        type: Date,
+        type: String,
       },
       position: {
         type: String,

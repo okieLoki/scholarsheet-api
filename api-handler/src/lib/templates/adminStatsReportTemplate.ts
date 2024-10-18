@@ -184,17 +184,21 @@ export const adminStatshtmlReport = (
     <h2>Key Statistics</h2>
     <div class="stat-cards">
       <div class="stat-card">
-        <h3>Citations (${currentYear})</h3>
-        <div class="stat-value">${cardStats.citations[currentYear]}</div>
+        <h3>Citations (${year ? year : currentYear})</h3>
+        <div class="stat-value">${
+          cardStats.citations[year ? year : currentYear]
+        }</div>
         <div class="stat-comparison">Previous Year: ${
-          cardStats.citations[currentYear - 1]
+          cardStats.citations[(year ? year : currentYear) - 1]
         } | Growth: ${cardStats.citations.growth.toFixed(2)}%</div>
       </div>
       <div class="stat-card">
-        <h3>Publications (${currentYear})</h3>
-        <div class="stat-value">${cardStats.publications[currentYear]}</div>
+        <h3>Publications (${year ? year : currentYear})</h3>
+        <div class="stat-value">${
+          cardStats.publications[year ? year : currentYear]
+        }</div>
         <div class="stat-comparison">Previous Year: ${
-          cardStats.publications[currentYear - 1]
+          cardStats.publications[(year ? year : currentYear) - 1]
         } | Growth: ${cardStats.publications.growth.toFixed(2)}%</div>
       </div>
       <div class="stat-card">

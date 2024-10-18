@@ -16,6 +16,66 @@ components:
       bearerFormat: JWT
 
 paths:
+  /admin/signin:
+    post:
+      summary: Create a new admin account
+      tags:
+        - Admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                institute_name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                address:
+                  type: string
+              required:
+                - institute_name
+                - email
+                - password
+                - address
+      responses:
+        "201":
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Account created successfully"
+        "409":
+          description: User already exists
+        "400":
+          description: Bad request
+
+  /admin/email/verify:
+    get:
+      summary: Verify admin email
+      tags:
+        - Admin
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema:
+            type: string
+          description: Email verification token
+      responses:
+        "200":
+          description: Email verified successfully
+        "400":
+          description: Invalid or missing token
+        "404":
+          description: Invalid or expired token
   /admin/login:
     post:
       summary: Admin login
@@ -53,6 +113,107 @@ paths:
                         type: string
                       address:
                         type: string
+  
+  /admin/researcher:
+    post:
+      summary: Add a new researcher
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scholar_id:
+                  type: string
+                  minLength: 3
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                department:
+                  type: string
+                  minLength: 3
+                positions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      start:
+                        type: string
+                        example: "10-10-2010"
+                      end:
+                        type: string
+                        example: "10-10-2015"
+                      position:
+                        type: string
+                        minLength: 3
+                      institute:
+                        type: string
+                        minLength: 3
+                    required:
+                      - start
+                      - position
+                      - institute
+                gender:
+                  type: string
+                  enum: [male, female, other]
+              required:
+                - scholar_id
+                - email
+                - department
+                - gender
+      responses:
+        "201":
+          description: Researcher added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Researcher added successfully"
+
+  /admin/department:
+    post:
+      summary: Add departments
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                departments:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - departments
+      responses:
+        "200":
+          description: Departments added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Departments added successfully"
+                  departments:
+                    type: array
+                    items:
+                      type: string
 
   /admin/stats/departments:
     get:

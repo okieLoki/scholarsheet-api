@@ -21,6 +21,12 @@ class AdminRouter {
       AdminController.prototype.addReseacher
     );
 
+    this.router.post(
+      "/department",
+      adminAuthHandler,
+      AdminController.prototype.addDepartments
+    )
+
     return this.router;
   }
 }

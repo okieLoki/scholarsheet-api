@@ -42,11 +42,44 @@ export const addResearcherValidator = z.object({
   positions: z
     .array(
       z.object({
-        start: z.date({
-          required_error: "Start date is required",
-          invalid_type_error: "Start date must be a valid date",
-        }),
-        end: z.date().optional(),
+        start: z
+          .string()
+          .refine(
+            (date) => /^\d{2}-\d{2}-\d{4}$/.test(date),
+            "Start date must be in the format dd-mm-yyyy"
+          )
+          .refine(
+            (date) => {
+              const [day, month, year] = date.split("-").map(Number);
+              const parsedDate = new Date(year, month - 1, day);
+              return (
+                parsedDate.getFullYear() === year &&
+                parsedDate.getMonth() === month - 1 &&
+                parsedDate.getDate() === day
+              );
+            },
+            "Start date must be a valid date"
+          ),
+        end: z
+          .string()
+          .optional()
+          .refine(
+            (date) => !date || /^\d{2}-\d{2}-\d{4}$/.test(date),
+            "End date must be in the format dd-mm-yyyy"
+          )
+          .refine(
+            (date) => {
+              if (!date) return true;
+              const [day, month, year] = date.split("-").map(Number);
+              const parsedDate = new Date(year, month - 1, day);
+              return (
+                parsedDate.getFullYear() === year &&
+                parsedDate.getMonth() === month - 1 &&
+                parsedDate.getDate() === day
+              );
+            },
+            "End date must be a valid date"
+          ),
         position: z
           .string()
           .min(3, "Position must be at least 3 characters long"),

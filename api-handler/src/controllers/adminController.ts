@@ -18,10 +18,14 @@ import createError from "http-errors";
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import xlsx from "xlsx";
+import { File as MulterFile } from "multer";
+
 declare global {
   namespace Express {
     interface Request {
       admin: AdminInterface;
+      file: MulterFile;
     }
   }
 }
@@ -60,7 +64,7 @@ export class AdminController {
         email_verification_token_expiry: new Date(Date.now() + 3600000),
       });
 
-      await sendEmailVerificationMail(email, emailVerificationToken);
+      // await sendEmailVerificationMail(email, emailVerificationToken);
 
       return res.status(201).json({
         message: "Account created successfully",
@@ -148,7 +152,7 @@ export class AdminController {
 
       const updatedAdmin = await AdminModel.findByIdAndUpdate(
         admin.id,
-        { departments: departments },
+        { $addToSet: { departments: { $each: departments } } },
         { new: true }
       );
 
@@ -166,6 +170,17 @@ export class AdminController {
       const admin = req.admin;
       const { scholar_id, email, department, positions, gender } =
         addResearcherValidator.parse(req.body);
+
+      if (positions?.length) {
+        for (const position of positions) {
+          if (position.end) {
+            if (new Date(position.start) > new Date(position.end))
+              throw new createError.BadRequest(
+                "End date must be greater than start date"
+              );
+          }
+        }
+      }
 
       const researcher = await ResearcherModel.findOne({ scholar_id });
 
@@ -200,7 +215,7 @@ export class AdminController {
         h_index: reseacherData.hIndex,
         i_index: reseacherData.i10Index,
         name: reseacherData.name,
-        gender
+        gender,
       });
 
       await rabbitmq.publish(

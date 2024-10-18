@@ -6,149 +6,71 @@ import { PipelineStage } from "mongoose";
 import { PublicationFetchingFiltersAdmin } from "../../types";
 import { adminStatshtmlReport } from "../templates/adminStatsReportTemplate";
 
-
 export class AdminStatsService {
   async getDepartments(adminId: string): Promise<string[]> {
     const admin = await AdminModel.findById(adminId, { departments: 1 }).lean();
     return admin?.departments || [];
   }
 
-  async getCardStatsData(adminId: string, department?: string) {
-    const currentYear = new Date().getFullYear();
+  async getCardStatsData(adminId: string, department?: string, year?: number) {
+    const currentYear = year || new Date().getFullYear();
     const lastYear = currentYear - 1;
 
-    const matchStage: any = { admin_id: adminId };
+    const baseQuery = { admin_id: adminId };
     if (department) {
-      matchStage["researcher.department"] = department;
+      baseQuery["researcher.department"] = department;
     }
 
-    const [paperStats, researcherCount] = await Promise.all([
-      PaperModel.aggregate([
-        { $match: matchStage },
-        {
-          $group: {
-            _id: {
-              $toInt: {
-                $cond: [
-                  {
-                    $eq: [
-                      {
-                        $arrayElemAt: [
-                          { $split: ["$publicationDate", "/"] },
-                          0,
-                        ],
-                      },
-                      "",
-                    ],
-                  },
-                  "0",
-                  { $arrayElemAt: [{ $split: ["$publicationDate", "/"] }, 0] },
-                ],
-              },
-            },
-            publicationCount: { $sum: 1 },
-            citationCount: { $sum: "$totalCitations" },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            currentYearCitations: {
-              $sum: {
-                $cond: [{ $eq: ["$_id", currentYear] }, "$citationCount", 0],
-              },
-            },
-            lastYearCitations: {
-              $sum: {
-                $cond: [{ $eq: ["$_id", lastYear] }, "$citationCount", 0],
-              },
-            },
-            currentYearPublications: {
-              $sum: {
-                $cond: [{ $eq: ["$_id", currentYear] }, "$publicationCount", 0],
-              },
-            },
-            lastYearPublications: {
-              $sum: {
-                $cond: [{ $eq: ["$_id", lastYear] }, "$publicationCount", 0],
-              },
-            },
-            totalPapers: { $sum: "$publicationCount" },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            citations: {
-              [currentYear]: "$currentYearCitations",
-              [lastYear]: "$lastYearCitations",
-              growth: {
-                $cond: [
-                  { $eq: ["$lastYearCitations", 0] },
-                  null,
-                  {
-                    $multiply: [
-                      {
-                        $divide: [
-                          {
-                            $subtract: [
-                              "$currentYearCitations",
-                              "$lastYearCitations",
-                            ],
-                          },
-                          "$lastYearCitations",
-                        ],
-                      },
-                      100,
-                    ],
-                  },
-                ],
-              },
-            },
-            publications: {
-              [currentYear]: "$currentYearPublications",
-              [lastYear]: "$lastYearPublications",
-              growth: {
-                $cond: [
-                  { $eq: ["$lastYearPublications", 0] },
-                  null,
-                  {
-                    $multiply: [
-                      {
-                        $divide: [
-                          {
-                            $subtract: [
-                              "$currentYearPublications",
-                              "$lastYearPublications",
-                            ],
-                          },
-                          "$lastYearPublications",
-                        ],
-                      },
-                      100,
-                    ],
-                  },
-                ],
-              },
-            },
-            totalPapers: 1,
-          },
-        },
-      ]),
-      ResearcherModel.countDocuments({
-        admin_id: adminId,
-        ...(department && { department }),
+    const reseacherFilter: any = {
+      admin_id: adminId
+    }
+    if(department) reseacherFilter.department = department
+
+    const [currentYearData, lastYearData, researcherCount] = await Promise.all([
+      PaperModel.find({
+        ...baseQuery,
+        publicationDate: currentYear.toString(),
       }),
+      PaperModel.find({ ...baseQuery, publicationDate: lastYear.toString() }),
+      ResearcherModel.countDocuments(reseacherFilter),
     ]);
 
-    const result = paperStats[0] || {
-      citations: { [currentYear]: 0, [lastYear]: 0, growth: null },
-      publications: { [currentYear]: 0, [lastYear]: 0, growth: null },
-      totalPapers: 0,
+    const calculateTotals = (papers) => ({
+      citations: papers.reduce(
+        (sum, paper) => sum + (paper.totalCitations || 0),
+        0
+      ),
+      publications: papers.length,
+    });
+
+    const currentYearTotals = calculateTotals(currentYearData);
+    const lastYearTotals = calculateTotals(lastYearData);
+
+    const calculateGrowth = (current, previous) =>
+      previous === 0 ? null : ((current - previous) / previous) * 100;
+
+    const result = {
+      citations: {
+        [currentYear]: currentYearTotals.citations,
+        [lastYear]: lastYearTotals.citations,
+        growth: calculateGrowth(
+          currentYearTotals.citations,
+          lastYearTotals.citations
+        ),
+      },
+      publications: {
+        [currentYear]: currentYearTotals.publications,
+        [lastYear]: lastYearTotals.publications,
+        growth: calculateGrowth(
+          currentYearTotals.publications,
+          lastYearTotals.publications
+        ),
+      },
+      totalPapers: currentYearTotals.publications + lastYearTotals.publications,
+      totalResearchers: researcherCount,
     };
 
-    result.totalResearchers = researcherCount;
-
+    console.log(result);
     return result;
   }
 
@@ -562,7 +484,7 @@ export class AdminStatsService {
       rankData,
       genderDistribution,
     ] = await Promise.all([
-      this.getCardStatsData(adminId, department),
+      this.getCardStatsData(adminId, department, year),
       this.getAnalyticsGraphData(adminId, department, "totalPapers"),
       this.getAnalyticsGraphData(adminId, department, "totalCitations"),
       this.getTopResearchersData(adminId, department, year),

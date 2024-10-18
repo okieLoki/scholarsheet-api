@@ -9,9 +9,7 @@ import { rankService } from "../lib/services/rankService";
 import { PipelineStage } from "mongoose";
 import { config } from "../config";
 import { adminStatsService } from "../lib/services/adminStatsService";
-import pdf from "html-pdf";
-import { promisify } from "util";
-import fs, { rmSync } from "fs";
+import fs from "fs";
 import path from "path";
 import puppeteer from "puppeteer";
 import { cloudinaryService } from "../lib/services/cloudinaryService";
@@ -776,13 +774,13 @@ export class AdminStatsController {
   public async generateReport(req: Request, res: Response, next: NextFunction) {
     try {
       const admin = req.admin;
-      const {department, year} = req.query as {
+      const { department, year } = req.query as {
         department?: string;
         year?: number;
-      }
+      };
 
       const htmlReport = await adminStatsService.generateReport(
-        admin.id as string, 
+        admin.id as string,
         department,
         year
       );
@@ -801,7 +799,7 @@ export class AdminStatsController {
       await browser.close();
 
       const randomString = Math.random().toString(36).substring(7);
-      
+
       const fileName = `admin-report-${Date.now()}-${randomString}.pdf`;
       const filePath = path.join(__dirname, "files", fileName);
       fs.writeFileSync(filePath, pdfBuffer);
