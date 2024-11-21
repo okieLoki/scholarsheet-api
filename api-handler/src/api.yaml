@@ -279,6 +279,169 @@ paths:
                     type: string
                     example: "An unexpected error occurred"
         
+  /admin/researchers:
+    get:
+      summary: Get all researchers
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+          required: false
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: Number of researchers per page
+          required: false
+        - in: query
+          name: department
+          schema:
+            type: string
+          description: Filter researchers by department
+          required: false
+        - in: query
+          name: gender
+          schema:
+            type: string
+          description: Filter researchers by gender
+          required: false
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: 
+              - name
+              - -name
+              - hIndex
+              - -hIndex
+              - iIndex
+              - -iIndex
+              - totalPapers
+              - -totalPapers
+          description: >
+            Sort researchers. 
+            Prefix with '-' for descending order.
+            Supported fields: name, hIndex, iIndex, totalPapers
+          required: false
+      responses:
+        '200':
+          description: Successful retrieval of researchers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  researchers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        scholar_id:
+                          type: string
+                        email:
+                          type: string
+                        department:
+                          type: string
+                        gender:
+                          type: string
+                        citations:
+                          type: integer
+                        h_index:
+                          type: integer
+                        i_index:
+                          type: integer
+                        totalPapers:
+                          type: integer
+                        positions:
+                          type: array
+                          items:
+                            type: string
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      pages:
+                        type: integer
+        '401':
+          description: Unauthorized, invalid or missing token
+        '500':
+          description: Server error
+
+  /admin/researcher/update/{id}:
+    put:
+      summary: Update researcher details
+      description: |
+        Allows partial updates to researcher information. 
+        Only provided fields will be updated.
+        Requires admin authentication and ownership.
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Scholar ID of the researcher to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                  description: Full name of the researcher
+                email:
+                  type: string
+                  format: email
+                  description: Valid email address
+                department:
+                  type: string
+                  description: Researcher's department
+                gender:
+                  type: string
+                  enum: ['Male', 'Female', 'Other']
+                  description: Researcher's gender
+                positions:
+                  type: array
+                  items:
+                    type: string
+                  description: List of researcher's positions
+      responses:
+        '200':
+          description: Researcher successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Researcher updated successfully"
 
   /admin/department:
     post:

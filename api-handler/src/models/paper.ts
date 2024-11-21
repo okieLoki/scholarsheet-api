@@ -23,7 +23,6 @@ export const paperSchema = new Schema({
   admin_id: {
     type: mongoose.Types.ObjectId,
     ref: "Admin",
-    required: true,
   },
   title: {
     type: String,
@@ -79,6 +78,18 @@ export const paperSchema = new Schema({
     type: Date,
     default: Date.now,
   },
+  previous: [
+    {
+      admin_id: {
+        type: mongoose.Types.ObjectId,
+        ref: "Admin",
+      }, 
+      department: {
+        type: String,
+        required: true,
+      }
+    }
+  ]
 });
 
 export type PaperType = InferSchemaType<typeof paperSchema>;

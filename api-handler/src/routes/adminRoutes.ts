@@ -31,6 +31,18 @@ class AdminRouter {
       ReseacherManagementController.prototype.deleteReseacher
     );
 
+    this.router.get(
+      "/researchers",
+      adminAuthHandler,
+      ReseacherManagementController.prototype.getAllReseachers
+    )
+
+    this.router.put(
+      "/researcher/update/:id",
+      adminAuthHandler,
+      ReseacherManagementController.prototype.updateResearcher
+    )
+
     this.router.post(
       "/department",
       adminAuthHandler,

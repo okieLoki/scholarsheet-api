@@ -177,6 +177,16 @@ export class AdminController {
         addResearcherValidator.parse(req.body);
 
       if (positions?.length) {
+        // Check for multiple current positions
+        const currentPositions = positions.filter(
+          (position) => position.current
+        );
+        if (currentPositions.length > 1) {
+          throw new createError.BadRequest(
+            "Only one current position is allowed"
+          );
+        }
+
         positions.forEach((position, index) => {
           if (position.current) {
             if (position.end) {

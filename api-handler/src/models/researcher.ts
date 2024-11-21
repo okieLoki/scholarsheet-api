@@ -63,10 +63,15 @@ export const researcherSchema = new Schema({
       current: {
         type: Boolean,
         required: true,
-      }
+      },
     },
   ],
-
+  previousAdmins: [
+    {
+      type: mongoose.Types.ObjectId,
+      ref: "Admin",
+    },
+  ],
 });
 
 researcherSchema.index({ name: "text", department: "text" });
