@@ -113,10 +113,10 @@ paths:
                         type: string
                       address:
                         type: string
-  
+
   /admin/researcher:
     post:
-      summary: Add a new researcher
+      summary: Add a new researcher (If current is true then end date and institute are not required)
       tags:
         - Admin
       security:
@@ -155,10 +155,13 @@ paths:
                       institute:
                         type: string
                         minLength: 3
+                      current:
+                        type: boolean
                     required:
                       - start
                       - position
                       - institute
+                      - current
                 gender:
                   type: string
                   enum: [male, female, other]
@@ -178,6 +181,104 @@ paths:
                   message:
                     type: string
                     example: "Researcher added successfully"
+
+  /admin/researcher/delete: 
+    delete: 
+      summary: Delete a researcher
+      tags: 
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: scholar_id
+          schema:
+            type: string
+          description: Scholar ID of the researcher to delete
+          required: true
+        - in: query
+          name: end_date
+          schema:
+            type: string
+          description: End date associated with the researcher
+          required: true
+      responses:
+        201:
+          description: Researcher updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Researcher updated successfully"
+                  updatedPositions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        title:
+                          type: string
+                          description: Position title
+                          example: "Associate Professor"
+                        start:
+                          type: string
+                          format: date
+                          example: "2020-01-01"
+                        end:
+                          type: string
+                          format: date
+                          example: "2023-01-01"
+                        current:
+                          type: boolean
+                          description: Indicates if this is the current position
+                          example: false
+                        institute:
+                          type: string
+                          description: Institute name
+                          example: "Institute of Advanced Studies"
+        400:
+          description: Bad request due to invalid query parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid query parameters"
+        403:
+          description: Forbidden - Admin does not have permission to modify this researcher
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "You do not have permission to modify this researcher"
+        404:
+          description: Researcher not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Researcher not found"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "An unexpected error occurred"
+        
 
   /admin/department:
     post:
@@ -614,79 +715,78 @@ paths:
         - bearerAuth: []
 
   /admin/stats/gender-diversity:
-      get:
-        summary: Get gender distribution data
-        tags:
-          - Admin Dashboard Stats
-        parameters:
-          - in: query
-            name: department
-            schema:
-              type: string
-            description: Filter by department (optional)
-        responses:
-          "200":
-            description: Successful response
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    distribution:
-                      type: object
-                      properties:
-                        male:
-                          type: integer
-                        female:
-                          type: integer
-                        others:
-                          type: integer
-                    percentages:
-                      type: object
-                      properties:
-                        male:
-                          type: string
-                        female:
-                          type: string
-                        others:
-                          type: string
-                    totalResearchers:
-                      type: integer
-        security:
-          - bearerAuth: []
+    get:
+      summary: Get gender distribution data
+      tags:
+        - Admin Dashboard Stats
+      parameters:
+        - in: query
+          name: department
+          schema:
+            type: string
+          description: Filter by department (optional)
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  distribution:
+                    type: object
+                    properties:
+                      male:
+                        type: integer
+                      female:
+                        type: integer
+                      others:
+                        type: integer
+                  percentages:
+                    type: object
+                    properties:
+                      male:
+                        type: string
+                      female:
+                        type: string
+                      others:
+                        type: string
+                  totalResearchers:
+                    type: integer
+      security:
+        - bearerAuth: []
 
   /admin/stats/report:
-      get:
-        summary: Generate pdf report for data
-        tags:
-          - Admin Dashboard Stats
-        parameters:
-          - in: query
-            name: department
-            schema:
-              type: string
-            description: Department to generate report for (Optional)
-          - in: query
-            name: year
-            schema:
-              type: string
-            description: Year to generate report for (Optional)
-        responses:
-          "200":
-            description: Successful response
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    fileUrl: 
-                      type: string
-                    message: 
-                      type: string
-                      default: "Report generated and uploaded successfully"
-        security:
-          - bearerAuth: []
-
+    get:
+      summary: Generate pdf report for data
+      tags:
+        - Admin Dashboard Stats
+      parameters:
+        - in: query
+          name: department
+          schema:
+            type: string
+          description: Department to generate report for (Optional)
+        - in: query
+          name: year
+          schema:
+            type: string
+          description: Year to generate report for (Optional)
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fileUrl:
+                    type: string
+                  message:
+                    type: string
+                    default: "Report generated and uploaded successfully"
+      security:
+        - bearerAuth: []
 
   /search/researcher:
     get:
@@ -963,7 +1063,7 @@ paths:
             type: string
           description: Scholar ID of the researcher
         - in: query
-          name: year  
+          name: year
           schema:
             type: string
             default: 2024
@@ -997,7 +1097,7 @@ paths:
             type: string
           description: Scholar ID of the researcher
         - in: query
-          name: year  
+          name: year
           schema:
             type: string
             default: 2024

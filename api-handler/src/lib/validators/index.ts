@@ -48,18 +48,15 @@ export const addResearcherValidator = z.object({
             (date) => /^\d{2}-\d{2}-\d{4}$/.test(date),
             "Start date must be in the format dd-mm-yyyy"
           )
-          .refine(
-            (date) => {
-              const [day, month, year] = date.split("-").map(Number);
-              const parsedDate = new Date(year, month - 1, day);
-              return (
-                parsedDate.getFullYear() === year &&
-                parsedDate.getMonth() === month - 1 &&
-                parsedDate.getDate() === day
-              );
-            },
-            "Start date must be a valid date"
-          ),
+          .refine((date) => {
+            const [day, month, year] = date.split("-").map(Number);
+            const parsedDate = new Date(year, month - 1, day);
+            return (
+              parsedDate.getFullYear() === year &&
+              parsedDate.getMonth() === month - 1 &&
+              parsedDate.getDate() === day
+            );
+          }, "Start date must be a valid date"),
         end: z
           .string()
           .optional()
@@ -67,25 +64,23 @@ export const addResearcherValidator = z.object({
             (date) => !date || /^\d{2}-\d{2}-\d{4}$/.test(date),
             "End date must be in the format dd-mm-yyyy"
           )
-          .refine(
-            (date) => {
-              if (!date) return true;
-              const [day, month, year] = date.split("-").map(Number);
-              const parsedDate = new Date(year, month - 1, day);
-              return (
-                parsedDate.getFullYear() === year &&
-                parsedDate.getMonth() === month - 1 &&
-                parsedDate.getDate() === day
-              );
-            },
-            "End date must be a valid date"
-          ),
+          .refine((date) => {
+            if (!date) return true;
+            const [day, month, year] = date.split("-").map(Number);
+            const parsedDate = new Date(year, month - 1, day);
+            return (
+              parsedDate.getFullYear() === year &&
+              parsedDate.getMonth() === month - 1 &&
+              parsedDate.getDate() === day
+            );
+          }, "End date must be a valid date"),
         position: z
           .string()
           .min(3, "Position must be at least 3 characters long"),
         institute: z
           .string()
           .min(3, "Institute name must be at least 3 characters long"),
+        current: z.boolean()
       })
     )
     .optional(),
@@ -127,4 +122,21 @@ export const publicationFetchingFiltersValidatorResearcher = z.object({
     ])
     .optional(),
   citationsRange: z.array(z.number()).length(2).optional(),
+});
+
+export const deleteResearcherSchema = z.object({
+  scholar_id: z.string().min(1, "Scholar ID is required"),
+  end_date: z.string().refine(
+    (value) => {
+      const regex = /^\d{2}-\d{2}-\d{4}$/;
+      if (!regex.test(value)) {
+        throw new Error("End date must be in DD-MM-YYYY format");
+      }
+
+      const [day, month, year] = value.split("-").map(Number);
+      const date = new Date(year, month - 1, day);
+      return date instanceof Date && !isNaN(date.getTime());
+    },
+    { message: "Invalid date" }
+  ),
 });

@@ -30,7 +30,6 @@ export const researcherSchema = new Schema({
   admin_id: {
     type: mongoose.Types.ObjectId,
     ref: "Admin",
-    required: true,
   },
   citations: {
     type: Number,
@@ -61,8 +60,13 @@ export const researcherSchema = new Schema({
         type: String,
         required: true,
       },
+      current: {
+        type: Boolean,
+        required: true,
+      }
     },
   ],
+
 });
 
 researcherSchema.index({ name: "text", department: "text" });
