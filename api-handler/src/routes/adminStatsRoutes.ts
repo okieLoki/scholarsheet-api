@@ -10,12 +10,11 @@ class StatsRouter {
   }
 
   routes() {
-
     this.router.get(
       "/departments",
       adminAuthHandler,
       AdminStatsController.prototype.getDepartments
-    )
+    );
 
     this.router.get(
       "/card-data",
@@ -60,22 +59,28 @@ class StatsRouter {
     );
 
     this.router.get(
-      "/rank", 
+      "/rank",
       adminAuthHandler,
       AdminStatsController.prototype.getRankData
-    )
+    );
 
     this.router.get(
       "/gender-diversity",
       adminAuthHandler,
       AdminStatsController.prototype.getGenderDistributionData
-    )
+    );
 
     this.router.get(
-      '/report', 
+      "/report",
       adminAuthHandler,
       AdminStatsController.prototype.generateReport
-    )
+    );
+
+    this.router.get(
+      "/year-range",
+      adminAuthHandler,
+      AdminStatsController.prototype.getStatsDataForYearRange
+    );
 
     return this.router;
   }

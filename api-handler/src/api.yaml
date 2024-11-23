@@ -951,6 +951,73 @@ paths:
       security:
         - bearerAuth: []
 
+  /admin/stats/year-range:
+    get:
+      summary: Get statistics data for a specific year range
+      tags:
+        - Admin Dashboard Stats
+      parameters:
+        - in: query
+          name: department
+          schema:
+            type: string
+          description: Department to filter statistics 
+        - in: query
+          name: startYear
+          schema:
+            type: string
+          description: Start year of the range 
+          required: true
+        - in: query
+          name: endYear
+          schema:
+            type: string
+          description: End year of the range 
+          required: true
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalPapers:
+                    type: integer
+                    description: Total number of papers in the specified range
+                  totalCitations:
+                    type: integer
+                    description: Total number of citations for papers in the specified range
+                  hIndex:
+                    type: integer
+                    description: H-index calculated for the specified range
+                  i10index:
+                    type: integer
+                    description: i10-index calculated for the specified range
+        "400":
+          description: Invalid request (e.g., missing or invalid parameters)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Error message
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Error message
+      security:
+        - bearerAuth: []
+
+
   /search/researcher:
     get:
       tags:

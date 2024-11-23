@@ -816,4 +816,116 @@ export class AdminStatsController {
       next(error);
     }
   }
+
+  public async getStatsDataForYearRange(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
+      const admin = req.admin;
+      const { department, startYear, endYear } = req.query;
+
+      if (!startYear || !endYear)
+        throw new createHttpError.BadRequest(
+          "Start year and end year are required"
+        );
+      if (
+        isNaN(parseInt(startYear as string)) ||
+        isNaN(parseInt(endYear as string))
+      )
+        throw new createHttpError.BadRequest("Invalid year");
+      if (parseInt(startYear as string) > parseInt(endYear as string))
+        throw new createHttpError.BadRequest(
+          "Start year cannot be greater than end year"
+        );
+
+      const adminDepartments = await AdminModel.findById(admin.id, {
+        departments: 1,
+      });
+
+      if (
+        department &&
+        !adminDepartments?.departments.includes(department as string)
+      )
+        throw new createHttpError.BadRequest("Invalid department");
+
+      const matchStage: any = {
+        admin_id: admin.id,
+        publicationDate: {
+          $gte: startYear,
+          $lte: endYear,
+        },
+      };
+
+      if (department) {
+        matchStage["researcher.department"] = department;
+      }
+
+      const aggregationPipeline: PipelineStage[] = [
+        { $match: matchStage },
+        {
+          $group: {
+            _id: null,
+            totalPapers: { $sum: 1 },
+            totalCitations: { $sum: "$totalCitations" },
+            papers: { $push: { citations: "$totalCitations" } },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            totalPapers: 1,
+            totalCitations: 1,
+            hIndex: {
+              $size: {
+                $filter: {
+                  input: {
+                    $range: [0, { $max: ["$totalPapers", "$totalCitations"] }],
+                  },
+                  as: "i",
+                  cond: {
+                    $gte: [
+                      {
+                        $size: {
+                          $filter: {
+                            input: "$papers",
+                            as: "p",
+                            cond: { $gte: ["$$p.citations", "$$i"] },
+                          },
+                        },
+                      },
+                      "$$i",
+                    ],
+                  },
+                },
+              },
+            },
+            i10index: {
+              $size: {
+                $filter: {
+                  input: "$papers",
+                  as: "paper",
+                  cond: { $gte: ["$$paper.citations", 10] },
+                },
+              },
+            },
+          },
+        },
+      ];
+
+      const result = await PaperModel.aggregate(aggregationPipeline);
+
+      res.status(200).json(
+        result[0] || {
+          totalPapers: 0,
+          totalCitations: 0,
+          hIndex: 0,
+          i10index: 0,
+        }
+      );
+    } catch (error) {
+      next(error);
+    }
+  }
 }
