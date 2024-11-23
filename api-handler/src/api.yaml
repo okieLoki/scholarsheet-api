@@ -16,7 +16,7 @@ components:
       bearerFormat: JWT
 
 paths:
-  /admin/signin:
+  /admin/signup:
     post:
       summary: Create a new admin account
       tags:
@@ -1501,5 +1501,58 @@ paths:
                         type: integer
                       pages:
                         type: integer
+      security:
+        - bearerAuth: []
+
+  /rank:
+    get:
+      summary: Get institute rankings based on criteria
+      tags:
+        - Rank
+      parameters:
+        - in: query
+          name: criteria
+          required: true
+          schema:
+            type: string
+            enum: [totalPapers, citations]
+          description: Criteria for ranking institutes (either totalPapers or citations)
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  instituteRank:
+                    type: integer
+                    description: Current rank of the requesting institute
+                    example: 5
+                  rankings:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                          description: Institute ID
+                          example: "507f1f77bcf86cd799439011"
+                        rank:
+                          type: integer
+                          description: Position in rankings
+                          example: 1
+                        name:
+                          type: string
+                          description: Name of the institute
+                          example: "Stanford University"
+                        totalPapers:
+                          type: integer
+                          description: Total number of research papers
+                          example: 150
+                        citations:
+                          type: integer
+                          description: Total number of citations
+                          example: 2500
       security:
         - bearerAuth: []

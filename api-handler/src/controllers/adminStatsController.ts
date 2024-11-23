@@ -331,6 +331,7 @@ export class AdminStatsController {
             totalPapers: { $sum: 1 },
             totalCitations: { $sum: "$totalCitations" },
             papers: { $push: { citations: "$totalCitations" } },
+            scholar_id: { $first: "$researcher.scholar_id"}
           },
         },
         {
@@ -339,6 +340,7 @@ export class AdminStatsController {
             researcher_id: "$_id",
             name: 1,
             department: 1,
+            scholar_id: 1,
             totalPapers: 1,
             totalCitations: 1,
             hIndex: {

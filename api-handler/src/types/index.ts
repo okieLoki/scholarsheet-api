@@ -6,6 +6,7 @@ export type ResearcherData = {
   citations: string;
   hIndex: string;
   i10Index: string;
+  imageUrl: string;
 };
 export type Article = {
   title: string;

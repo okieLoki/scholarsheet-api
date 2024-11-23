@@ -11,7 +11,7 @@ class AdminRouter {
   }
 
   routes() {
-    this.router.post("/signin", AdminController.prototype.createAdminAccount);
+    this.router.post("/signup", AdminController.prototype.createAdminAccount);
     this.router.get(
       "/email/verify",
       AdminController.prototype.verifyAdminAccount

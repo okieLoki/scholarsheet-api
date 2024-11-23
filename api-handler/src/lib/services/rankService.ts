@@ -24,19 +24,25 @@ class RankService {
       ],
     };
 
-    const paperRankings = await ResearcherModel.aggregate(
-      pipelines.totalPapers
-    );
+    const [paperRankings, citationRankings] = await Promise.all([
+      ResearcherModel.aggregate(pipelines.totalPapers),
+      ResearcherModel.aggregate(pipelines.totalCitations),
+    ]);
+
+    console.log(paperRankings);
+    console.log(adminId);
 
     const paperRank =
-      paperRankings.findIndex((entry) => entry._id == adminId) + 1;
+      paperRankings.findIndex(
+        (entry) =>
+          entry._id && entry._id.equals(new mongoose.Types.ObjectId(adminId))
+      ) + 1;
 
-    const citationRankings = await ResearcherModel.aggregate(
-      pipelines.totalCitations
-    );
     const citationRank =
-      citationRankings.findIndex((entry) => entry._id == adminId) + 1;
-
+      citationRankings.findIndex(
+        (entry) =>
+          entry._id && entry._id.equals(new mongoose.Types.ObjectId(adminId))
+      ) + 1;
     return {
       totalPapersRank: paperRank,
       totalCitationsRank: citationRank,
