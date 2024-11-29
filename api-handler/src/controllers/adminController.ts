@@ -127,7 +127,7 @@ export class AdminController {
       const token = await jwt.sign(
         { id: admin._id.toString() },
         config.JWT_SECRET,
-        { expiresIn: "1d" }
+        { expiresIn: "180d" }
       );
 
       res.setHeader("Authorization", `Bearer ${token}`);

@@ -132,14 +132,20 @@ export class ResearcherStatsController {
         citations: {
           [currentYear]: currentYearCitations,
           [lastYear]: lastYearCitations,
-          increasePercentage: citationIncrease.toFixed(2),
+          growth:
+            citationIncrease > 0
+              ? `${citationIncrease.toFixed(2)}% increase`
+              : `${Math.abs(citationIncrease).toFixed(2)}% decrease`,
         },
-        totalPapers: {
+        publications: {
           [currentYear]: totalPapersCurrentYear,
           [lastYear]: totalPapersLastYear,
-          total: papers.length,
-          increasePercentage: totalPapersIncrease.toFixed(2),
+          growth:
+            totalPapersIncrease > 0
+              ? `${totalPapersIncrease.toFixed(2)}% increase`
+              : `${Math.abs(totalPapersIncrease).toFixed(2)}% decrease`,
         },
+        totalPapers: papers.length || 0,
         hIndex: researcher.h_index || 0,
         i10Index: researcher.i_index || 0,
       };
