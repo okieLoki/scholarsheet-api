@@ -166,6 +166,10 @@ export class ResearcherStatsController {
       const scholar_id = req.query.scholar_id as string;
       const criteria = req.query.criteria as string;
 
+      if (!scholar_id) {
+        throw new createHttpError.BadRequest("Scholar ID is required");
+      }
+
       if (
         !["totalPapers", "totalCitations", "hIndex", "i10Index"].includes(
           criteria
@@ -289,7 +293,12 @@ export class ResearcherStatsController {
         graphData.push(nullYearData);
       }
 
-      res.status(200).json(graphData);
+      const finalData = {};
+      graphData.forEach((item) => {
+        finalData[item.year] = item.value;
+      });
+
+      res.status(200).json(finalData);
     } catch (error) {
       next(error);
     }
