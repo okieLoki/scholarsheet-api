@@ -329,7 +329,9 @@ export class ResearcherStatsController {
       if (
         !["totalPapers", "citations", "h_index", "i_index"].includes(criteria)
       ) {
-        throw new createHttpError.BadRequest("Invalid criteria");
+        throw new createHttpError.BadRequest(
+          "Invalid criteria, must be either totalPapers, citations, h_index or i_index"
+        );
       }
 
       const specifiedScholar = await ResearcherModel.findOne({
@@ -410,12 +412,35 @@ export class ResearcherStatsController {
       ];
 
       const result = await ResearcherModel.aggregate(pipeline);
-      const topResearchers = result[0].data;
+      const topResearchers = result[0].data.map((researcher) => {
+        const modifiedObject = {
+          hIndex: researcher.h_index,
+          i10Index: researcher.i_index,
+          totalCitations: researcher.citations,
+          ...researcher,
+        };
+
+        delete modifiedObject.h_index;
+        delete modifiedObject.i_index;
+        delete modifiedObject.citations;
+        delete modifiedObject._id;
+
+        return modifiedObject;
+      });
       const metadata = result[0].metadata[0];
       const specifiedResearcherData = result[0].specifiedResearcher[0];
 
+      specifiedResearcherData.hIndex = specifiedResearcherData.h_index;
+      specifiedResearcherData.i10Index = specifiedResearcherData.i_index;
+      specifiedResearcherData.totalCitations = specifiedResearcherData.citations;
+
+      delete specifiedResearcherData.h_index;
+      delete specifiedResearcherData.i_index;
+      delete specifiedResearcherData.citations;
+      delete specifiedResearcherData._id;
+
       res.status(200).json({
-        topResearchers,
+        reseachers: topResearchers,
         researcher: specifiedResearcherData
           ? {
               rank: specifiedResearcherData.rank,
