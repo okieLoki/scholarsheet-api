@@ -689,7 +689,6 @@ export class ResearcherStatsController {
           sortCriteria = { [sort]: order === "asc" ? 1 : -1 };
         }
       }
-      console.log(sortCriteria);
       const aggregationPipeline: PipelineStage[] = [
         { $match: matchStage },
         {
@@ -712,7 +711,7 @@ export class ResearcherStatsController {
             description: 1,
             journal: 1,
             department: "$researcher.department",
-            googleScholarId: "$researcher.researcher_id",
+            scholarId: "$researcher.scholar_id",
           },
         },
         { $sort: sortCriteria },
