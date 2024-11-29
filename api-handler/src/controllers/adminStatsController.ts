@@ -922,7 +922,7 @@ export class AdminStatsController {
       )
         throw new createHttpError.BadRequest("Invalid department");
 
-      const matchStage: any = {
+      const matchConditions: any = {
         admin_id: admin.id,
         publicationDate: {
           $gte: startYear,
@@ -931,71 +931,42 @@ export class AdminStatsController {
       };
 
       if (department) {
-        matchStage["researcher.department"] = department;
+        matchConditions["researcher.department"] = department;
       }
 
-      const aggregationPipeline: PipelineStage[] = [
-        { $match: matchStage },
-        {
-          $group: {
-            _id: null,
-            totalPapers: { $sum: 1 },
-            totalCitations: { $sum: "$totalCitations" },
-            papers: { $push: { citations: "$totalCitations" } },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            totalPapers: 1,
-            totalCitations: 1,
-            hIndex: {
-              $size: {
-                $filter: {
-                  input: {
-                    $range: [0, { $max: ["$totalPapers", "$totalCitations"] }],
-                  },
-                  as: "i",
-                  cond: {
-                    $gte: [
-                      {
-                        $size: {
-                          $filter: {
-                            input: "$papers",
-                            as: "p",
-                            cond: { $gte: ["$$p.citations", "$$i"] },
-                          },
-                        },
-                      },
-                      "$$i",
-                    ],
-                  },
-                },
-              },
-            },
-            i10index: {
-              $size: {
-                $filter: {
-                  input: "$papers",
-                  as: "paper",
-                  cond: { $gte: ["$$paper.citations", 10] },
-                },
-              },
-            },
-          },
-        },
-      ];
+      const papers = await PaperModel.find(matchConditions)
+        .select("totalCitations")
+        .lean();
 
-      const result = await PaperModel.aggregate(aggregationPipeline);
-
-      res.status(200).json(
-        result[0] || {
-          totalPapers: 0,
-          totalCitations: 0,
-          hIndex: 0,
-          i10index: 0,
-        }
+      const totalPapers = papers.length;
+      const totalCitations = papers.reduce(
+        (sum, paper) => sum + (paper.totalCitations || 0),
+        0
       );
+
+      const citationCounts = papers
+        .map((paper) => paper.totalCitations || 0)
+        .sort((a, b) => b - a);
+
+      let hIndex = 0;
+      for (let i = 0; i < citationCounts.length; i++) {
+        if (citationCounts[i] >= i + 1) {
+          hIndex = i + 1;
+        } else {
+          break;
+        }
+      }
+
+      const i10index = citationCounts.filter(
+        (citations) => citations >= 10
+      ).length;
+
+      res.status(200).json({
+        totalPapers,
+        totalCitations,
+        hIndex,
+        i10index,
+      });
     } catch (error) {
       next(error);
     }

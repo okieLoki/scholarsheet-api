@@ -59,6 +59,11 @@ class ResearcherStatsRouter {
       ResearcherStatsController.prototype.getTopPublicationsData
     );
 
+    this.router.get(
+      "/year-range",
+      adminAuthHandler,
+      ResearcherStatsController.prototype.getStatsDataForYearRange
+    );
 
     return this.router;
   }

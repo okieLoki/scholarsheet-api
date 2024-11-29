@@ -432,7 +432,8 @@ export class ResearcherStatsController {
 
       specifiedResearcherData.hIndex = specifiedResearcherData.h_index;
       specifiedResearcherData.i10Index = specifiedResearcherData.i_index;
-      specifiedResearcherData.totalCitations = specifiedResearcherData.citations;
+      specifiedResearcherData.totalCitations =
+        specifiedResearcherData.citations;
 
       delete specifiedResearcherData.h_index;
       delete specifiedResearcherData.i_index;
@@ -736,6 +737,79 @@ export class ResearcherStatsController {
       };
 
       res.status(200).json(responseData);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  public async getStatsDataForYearRange(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) {
+    try {
+      const admin_id = req.admin.id as string;
+
+      const { startYear, endYear, scholar_id } = req.query;
+
+      if (!startYear || !endYear)
+        throw new createHttpError.BadRequest(
+          "Start year and end year are required"
+        );
+      if (
+        isNaN(parseInt(startYear as string)) ||
+        isNaN(parseInt(endYear as string))
+      )
+        throw new createHttpError.BadRequest("Invalid year");
+      if (parseInt(startYear as string) > parseInt(endYear as string))
+        throw new createHttpError.BadRequest(
+          "Start year cannot be greater than end year"
+        );
+
+      if (!scholar_id) {
+        throw new createHttpError.BadRequest("Scholar ID is required");
+      }
+
+      const papers = await PaperModel.find({
+        admin_id,
+        "researcher.scholar_id": scholar_id,
+        publicationDate: {
+          $gte: startYear,
+          $lte: endYear,
+        },
+      })
+        .select("totalCitations")
+        .lean();
+
+      const totalPapers = papers.length;
+      const totalCitations = papers.reduce(
+        (sum, paper) => sum + (paper.totalCitations || 0),
+        0
+      );
+
+      const citationCounts = papers
+        .map((paper) => paper.totalCitations || 0)
+        .sort((a, b) => b - a);
+
+      let hIndex = 0;
+      for (let i = 0; i < citationCounts.length; i++) {
+        if (citationCounts[i] >= i + 1) {
+          hIndex = i + 1;
+        } else {
+          break;
+        }
+      }
+
+      const i10Index = citationCounts.filter(
+        (citations) => citations >= 10
+      ).length;
+
+      return res.status(200).json({
+        totalPapers,
+        totalCitations,
+        hIndex,
+        i10Index,
+      });
     } catch (error) {
       next(error);
     }
