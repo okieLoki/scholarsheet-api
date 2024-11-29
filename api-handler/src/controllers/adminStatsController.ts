@@ -232,9 +232,13 @@ export class AdminStatsController {
       if (department && !adminDepartments?.departments.includes(department))
         throw new createHttpError.BadRequest("Invalid department");
 
-      if (!["totalPapers", "totalCitations"].includes(criteria)) {
+      if (
+        !["totalPapers", "totalCitations", "hIndex", "i10index"].includes(
+          criteria
+        )
+      ) {
         throw new createHttpError.BadRequest(
-          "Invalid or missing criteria, valid criteria are 'totalPapers' and 'totalCitations'"
+          "Invalid or missing criteria, valid criteria are 'totalPapers', 'totalCitations', 'hIndex', and 'i10index'"
         );
       }
 
@@ -243,24 +247,90 @@ export class AdminStatsController {
         matchStage["researcher.department"] = department;
       }
 
-      const aggregationPipeline: PipelineStage[] = [
-        { $match: matchStage },
-        {
-          $group: {
-            _id: { $substr: ["$publicationDate", 0, 4] },
-            count: { $sum: 1 },
-            citations: { $sum: "$totalCitations" },
+      let aggregationPipeline: PipelineStage[];
+
+      if (criteria === "hIndex" || criteria === "i10index") {
+        aggregationPipeline = [
+          { $match: matchStage },
+          {
+            $group: {
+              _id: "$publicationDate",
+              papers: { $push: { citations: "$totalCitations" } },
+            },
           },
-        },
-        {
-          $project: {
-            _id: 0,
-            year: "$_id",
-            value: criteria === "totalPapers" ? "$count" : "$citations",
+          {
+            $project: {
+              _id: 0,
+              year: "$_id",
+              value: {
+                $size: {
+                  $filter: {
+                    input:
+                      criteria === "hIndex"
+                        ? {
+                            $range: [
+                              0,
+                              {
+                                $max: [
+                                  { $size: "$papers" },
+                                  { $max: "$papers.citations" },
+                                ],
+                              },
+                            ],
+                          }
+                        : "$papers",
+                    as: criteria === "hIndex" ? "i" : "paper",
+                    cond:
+                      criteria === "hIndex"
+                        ? {
+                            $gte: [
+                              {
+                                $size: {
+                                  $filter: {
+                                    input: "$papers",
+                                    as: "p",
+                                    cond: { $gte: ["$$p.citations", "$$i"] },
+                                  },
+                                },
+                              },
+                              "$$i",
+                            ],
+                          }
+                        : { $gte: ["$$paper.citations", 10] },
+                  },
+                },
+              },
+            },
           },
-        },
-        { $sort: { year: -1 } },
-      ];
+          { $sort: { year: 1 } },
+        ];
+      } else {
+        aggregationPipeline = [
+          { $match: matchStage },
+          {
+            $group: {
+              _id: "$publicationDate",
+              value:
+                criteria === "totalPapers"
+                  ? { $sum: 1 }
+                  : { $sum: "$totalCitations" },
+            },
+          },
+          {
+            $match: {
+              _id: { $ne: "" },
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              year: "$_id",
+              value: 1,
+            },
+          },
+          { $sort: { year: 1 } },
+        ];
+      }
 
       const result = await PaperModel.aggregate(aggregationPipeline);
 
@@ -331,7 +401,7 @@ export class AdminStatsController {
             totalPapers: { $sum: 1 },
             totalCitations: { $sum: "$totalCitations" },
             papers: { $push: { citations: "$totalCitations" } },
-            scholar_id: { $first: "$researcher.scholar_id"}
+            scholar_id: { $first: "$researcher.scholar_id" },
           },
         },
         {
