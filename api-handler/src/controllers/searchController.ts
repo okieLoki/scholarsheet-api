@@ -3,7 +3,7 @@ import createHttpError from "http-errors";
 import { ResearcherModel } from "../models/researcher";
 
 export class SearchController {
-  public async searchReseacher(
+  public async searchResearcher(
     req: Request,
     res: Response,
     next: NextFunction

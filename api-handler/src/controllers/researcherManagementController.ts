@@ -10,7 +10,7 @@ import mongoose from "mongoose";
 import { PaperModel } from "../models/paper";
 import { config } from "../config";
 
-export class ReseacherManagementController {
+export class ResearcherManagementController {
   public async getAllResearchers(
     req: Request,
     res: Response,
@@ -146,7 +146,7 @@ export class ReseacherManagementController {
     }
   }
 
-  public async deleteReseacher(
+  public async deleteResearcher(
     req: Request,
     res: Response,
     next: NextFunction

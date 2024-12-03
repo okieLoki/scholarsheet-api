@@ -23,7 +23,7 @@ class CalculatorService {
             "researcher.researcher_id": researcher_id,
           });
 
-          const updatedReseacher = await ResearcherModel.findOneAndUpdate(
+          const updatedResearcher = await ResearcherModel.findOneAndUpdate(
             {
               _id: researcher_id,
             },
@@ -56,7 +56,7 @@ class CalculatorService {
                 $set: {
                   tags,
                   publicationDate: yearOfPublication,
-                  "researcher.department": updatedReseacher?.department,
+                  "researcher.department": updatedResearcher?.department,
                 },
               }
             );
@@ -65,8 +65,8 @@ class CalculatorService {
           await Promise.all([
             paperPromises,
             socketService.sendNotification(
-              updatedReseacher?.admin_id as mongoose.Types.ObjectId,
-              `Successfully imported data for ${updatedReseacher?.name}`
+              updatedResearcher?.admin_id as mongoose.Types.ObjectId,
+              `Successfully imported data for ${updatedResearcher?.name}`
             ),
           ]);
 

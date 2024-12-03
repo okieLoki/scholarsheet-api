@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { AdminController } from "../controllers/adminController";
 import { adminAuthHandler } from "../middleware/authHandler";
-import { ReseacherManagementController } from "../controllers/researcherManagementController";
+import { ResearcherManagementController } from "../controllers/researcherManagementController";
 
 class AdminRouter {
   public router: Router;
@@ -22,25 +22,25 @@ class AdminRouter {
     this.router.post(
       "/researcher",
       adminAuthHandler,
-      AdminController.prototype.addReseacher
+      AdminController.prototype.addResearcher
     );
 
     this.router.delete(
       "/researcher/delete",
       adminAuthHandler,
-      ReseacherManagementController.prototype.deleteReseacher
+      ResearcherManagementController.prototype.deleteResearcher
     );
 
     this.router.get(
       "/researchers",
       adminAuthHandler,
-      ReseacherManagementController.prototype.getAllResearchers
+      ResearcherManagementController.prototype.getAllResearchers
     )
 
     this.router.put(
       "/researcher/update/:id",
       adminAuthHandler,
-      ReseacherManagementController.prototype.updateResearcher
+      ResearcherManagementController.prototype.updateResearcher
     )
 
     this.router.post(

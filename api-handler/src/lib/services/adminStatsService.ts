@@ -21,10 +21,10 @@ export class AdminStatsService {
       baseQuery["researcher.department"] = department;
     }
 
-    const reseacherFilter: any = {
+    const researcherFilter: any = {
       admin_id: adminId
     }
-    if(department) reseacherFilter.department = department
+    if(department) researcherFilter.department = department
 
     const [currentYearData, lastYearData, researcherCount] = await Promise.all([
       PaperModel.find({
@@ -32,7 +32,7 @@ export class AdminStatsService {
         publicationDate: currentYear.toString(),
       }),
       PaperModel.find({ ...baseQuery, publicationDate: lastYear.toString() }),
-      ResearcherModel.countDocuments(reseacherFilter),
+      ResearcherModel.countDocuments(researcherFilter),
     ]);
 
     const calculateTotals = (papers) => ({

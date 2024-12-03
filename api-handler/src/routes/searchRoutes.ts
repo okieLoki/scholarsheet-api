@@ -13,7 +13,7 @@ class SearchRouter {
     this.router.get(
       "/researcher",
       adminAuthHandler,
-      SearchController.prototype.searchReseacher
+      SearchController.prototype.searchResearcher
     );
 
     return this.router;

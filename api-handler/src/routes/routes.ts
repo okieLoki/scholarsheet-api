@@ -1,7 +1,7 @@
 import { Application } from "express";
 import { adminRouter } from "./adminRoutes";
 import { adminStatsRouter } from "./adminStatsRoutes";
-import { researcherStatsRouter } from "./reseacherStatsRoute";
+import { researcherStatsRouter } from "./researcherStatsRoute";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
 import { searchRouter } from "./searchRoutes";

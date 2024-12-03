@@ -165,7 +165,7 @@ export class AdminController {
     }
   }
 
-  public async addReseacher(req: Request, res: Response, next: NextFunction) {
+  public async addResearcher(req: Request, res: Response, next: NextFunction) {
     try {
       const admin = req.admin;
       const adminData = await AdminModel.findById(admin.id, {
@@ -289,7 +289,7 @@ export class AdminController {
         );
       }
 
-      const reseacherData: ResearcherData =
+      const researcherData: ResearcherData =
         await researcherScrapper.getResearcherData(scholar_id);
 
       const newResearcher = await ResearcherModel.create({
@@ -298,10 +298,10 @@ export class AdminController {
         department,
         positions,
         admin_id: admin.id,
-        citations: reseacherData.citations,
-        h_index: reseacherData.hIndex,
-        i_index: reseacherData.i10Index,
-        name: reseacherData.name,
+        citations: researcherData.citations,
+        h_index: researcherData.hIndex,
+        i_index: researcherData.i10Index,
+        name: researcherData.name,
         gender,
       });
 
