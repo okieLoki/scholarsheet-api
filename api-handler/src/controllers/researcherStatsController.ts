@@ -430,7 +430,7 @@ export class ResearcherStatsController {
       delete specifiedResearcherData._id;
 
       res.status(200).json({
-        reseachers: topResearchers,
+        researchers: topResearchers,
         researcher: specifiedResearcherData
           ? {
               rank: specifiedResearcherData.rank,

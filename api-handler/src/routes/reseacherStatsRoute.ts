@@ -69,4 +69,4 @@ class ResearcherStatsRouter {
   }
 }
 
-export const reseacherStatsRouter = new ResearcherStatsRouter();
+export const researcherStatsRouter = new ResearcherStatsRouter();

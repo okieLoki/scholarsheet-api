@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { AdminController } from "../controllers/adminController";
 import { adminAuthHandler } from "../middleware/authHandler";
-import { ReseacherManagementController } from "../controllers/reseacherManagementController";
+import { ReseacherManagementController } from "../controllers/researcherManagementController";
 
 class AdminRouter {
   public router: Router;
@@ -34,7 +34,7 @@ class AdminRouter {
     this.router.get(
       "/researchers",
       adminAuthHandler,
-      ReseacherManagementController.prototype.getAllReseachers
+      ReseacherManagementController.prototype.getAllResearchers
     )
 
     this.router.put(

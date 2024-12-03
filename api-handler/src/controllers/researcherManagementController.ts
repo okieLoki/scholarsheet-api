@@ -11,7 +11,7 @@ import { PaperModel } from "../models/paper";
 import { config } from "../config";
 
 export class ReseacherManagementController {
-  public async getAllReseachers(
+  public async getAllResearchers(
     req: Request,
     res: Response,
     next: NextFunction
