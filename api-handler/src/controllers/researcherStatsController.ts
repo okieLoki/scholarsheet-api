@@ -289,167 +289,140 @@ export class ResearcherStatsController {
     next: NextFunction
   ) {
     try {
-      const admin_id = req.admin.id as string;
+      const { id: admin_id } = req.admin;
       const scholar_id = req.query.scholar_id as string;
-      let criteria = req.query.criteria as string;
-      const limit = parseInt(req.query.limit as string) || 5;
-      const page = parseInt(req.query.page as string) || 1;
-
-      if (limit > config.API_LIMIT) {
-        throw new createHttpError.BadRequest(
-          `Limit exceeds the maximum limit of ${config.API_LIMIT}`
-        );
-      }
+      const limit = Math.min(
+        parseInt(req.query.limit as string) || 5,
+        config.API_LIMIT
+      );
+      const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+      const year = req.query.year ? parseInt(req.query.year as string) : null;
 
       if (!scholar_id) {
         throw new createHttpError.BadRequest("Scholar ID is required");
       }
 
-      if (
-        ![
-          "totalPapers",
-          "citations",
-          "totalCitations",
-          "hIndex",
-          "i10Index",
-        ].includes(criteria)
-      ) {
+      let criteria = req.query.criteria as string;
+      const validCriteria = [
+        "totalCitations",
+        "citations",
+        "totalPapers",
+        "hIndex",
+        "i10Index",
+      ];
+
+      if (!validCriteria.includes(criteria)) {
         throw new createHttpError.BadRequest(
-          "Invalid criteria, must be either totalPapers, citations/totalCitations, hIndex or i10Index"
+          "Invalid criteria, must be either totalPapers, citations/totalCitations, hIndex, or i10Index"
         );
       }
 
-      if (criteria === "totalCitations") {
-        criteria = "citations";
-      }
-      if ((criteria = "i10Index")) {
-        criteria = "i_index";
-      }
-      if ((criteria = "hIndex")) {
-        criteria = "h_index";
-      }
+      criteria = criteria === "citations" ? "totalCitations" : criteria;
 
       const specifiedScholar = await ResearcherModel.findOne({
         scholar_id,
         admin_id,
-      }).lean();
+      });
+
       if (!specifiedScholar) {
         throw new createHttpError.NotFound("Specified scholar not found");
       }
 
-      const department = specifiedScholar.department;
+      const queryConditions: any = {
+        "researcher.department": specifiedScholar.department,
+        admin_id,
+      };
 
-      const pipeline: mongoose.PipelineStage[] = [
-        {
-          $match: {
-            admin_id: new mongoose.Types.ObjectId(admin_id),
-            department,
-          },
-        },
-        { $sort: { [criteria]: -1 } },
-        {
-          $setWindowFields: {
-            sortBy: { [criteria]: -1 },
-            output: {
-              rank: { $rank: {} },
-            },
-          },
-        },
-        {
-          $facet: {
-            metadata: [
-              { $count: "total" },
-              {
-                $addFields: {
-                  page,
-                  limit,
-                  pages: {
-                    $ceil: { $divide: ["$total", limit] },
-                  },
-                },
-              },
-            ],
-            data: [
-              { $skip: (page - 1) * limit },
-              { $limit: limit },
-              {
-                $project: {
-                  _id: 1,
-                  name: 1,
-                  scholar_id: 1,
-                  department: 1,
-                  totalPapers: 1,
-                  citations: 1,
-                  h_index: 1,
-                  i_index: 1,
-                  rank: 1,
-                },
-              },
-            ],
-            specifiedResearcher: [
-              { $match: { scholar_id } },
-              {
-                $project: {
-                  _id: 1,
-                  name: 1,
-                  scholar_id: 1,
-                  department: 1,
-                  totalPapers: 1,
-                  citations: 1,
-                  h_index: 1,
-                  i_index: 1,
-                  rank: 1,
-                },
-              },
-            ],
-          },
-        },
-      ];
+      if (year) {
+        queryConditions.publicationDate = { $regex: `^${year}` };
+      }
 
-      const result = await ResearcherModel.aggregate(pipeline);
-      const topResearchers = result[0].data.map((researcher) => {
-        const modifiedObject = {
-          hIndex: researcher.h_index,
-          i10Index: researcher.i_index,
-          totalCitations: researcher.citations,
-          ...researcher,
-        };
+      const allPapers = await PaperModel.find(queryConditions).lean();
 
-        delete modifiedObject.h_index;
-        delete modifiedObject.i_index;
-        delete modifiedObject.citations;
-        delete modifiedObject._id;
+      const researcherMetrics: Record<string, any> = {};
 
-        return modifiedObject;
+      allPapers.forEach(({ researcher, totalCitations }) => {
+        const researcherId = researcher.researcher_id.toString();
+
+        if (!researcherMetrics[researcherId]) {
+          researcherMetrics[researcherId] = {
+            researcher_id: researcherId,
+            name: researcher.name,
+            department: researcher.department,
+            scholar_id: researcher.scholar_id,
+            totalPapers: 0,
+            totalCitations: 0,
+            papersCitations: [],
+          };
+        }
+
+        const metrics = researcherMetrics[researcherId];
+        metrics.totalPapers++;
+        metrics.totalCitations += totalCitations;
+        metrics.papersCitations.push(totalCitations);
       });
-      const metadata = result[0].metadata[0];
-      const specifiedResearcherData = result[0].specifiedResearcher[0];
 
-      specifiedResearcherData.hIndex = specifiedResearcherData.h_index;
-      specifiedResearcherData.i10Index = specifiedResearcherData.i_index;
-      specifiedResearcherData.totalCitations =
-        specifiedResearcherData.citations;
+      const processedMetrics = Object.values(researcherMetrics).map(
+        ({ papersCitations, ...metrics }) => {
+          papersCitations.sort((a, b) => b - a);
 
-      delete specifiedResearcherData.h_index;
-      delete specifiedResearcherData.i_index;
-      delete specifiedResearcherData.citations;
-      delete specifiedResearcherData._id;
-
-      res.status(200).json({
-        researchers: topResearchers,
-        researcher: specifiedResearcherData
-          ? {
-              rank: specifiedResearcherData.rank,
-              ...specifiedResearcherData,
+          let hIndex = 0;
+          let i10Index = 0;
+          for (let i = 0; i < papersCitations.length; i++) {
+            if (papersCitations[i] >= i + 1) {
+              hIndex = i + 1;
             }
-          : null,
+            if (papersCitations[i] >= 10) {
+              i10Index++;
+            }
+          }
+
+          return {
+            ...metrics,
+            hIndex,
+            i10Index,
+          };
+        }
+      );
+
+      const sortedMetrics = processedMetrics.sort(
+        (a, b) => b[criteria] - a[criteria]
+      );
+
+      const startIndex = (page - 1) * limit;
+      const paginatedResults = sortedMetrics
+        .slice(startIndex, startIndex + limit)
+        .map((result, i) => {
+          const { researcher_id, ...rest } = result;
+          return {
+            ...rest,
+            rank: startIndex + i,
+          };
+        });
+
+      const responseData = {
+        researchers: paginatedResults,
+        researcher: {
+          name: specifiedScholar.name,
+          department: specifiedScholar.department,
+          totalPapers: specifiedScholar.totalPapers,
+          totalCitations: specifiedScholar.citations,
+          hIndex: specifiedScholar.h_index,
+          i10Index: specifiedScholar.i_index,
+          scholar_id: specifiedScholar.scholar_id,
+          rank: sortedMetrics.findIndex(
+            (researcher) => researcher.scholar_id === scholar_id
+          ),
+        },
         pagination: {
-          total: metadata?.total || 0,
+          total: sortedMetrics.length,
           page,
           limit,
-          pages: metadata?.pages || 0,
+          pages: Math.ceil(sortedMetrics.length / limit),
         },
-      });
+      };
+
+      res.status(200).json(responseData);
     } catch (error) {
       next(error);
     }
