@@ -328,11 +328,11 @@ export class AdminStatsController {
           "citations",
           "totalPapers",
           "hIndex",
-          "i10index",
+          "i10Index",
         ].includes(criteria)
       ) {
         throw new createHttpError.BadRequest(
-          "Invalid or missing criteria, valid criteria are 'totalPapers', 'totalCitations/citations', 'hIndex' and 'i10index'"
+          "Invalid or missing criteria, valid criteria are 'totalPapers', 'totalCitations/citations', 'hIndex' and 'i10Index'"
         );
       }
 
@@ -392,7 +392,7 @@ export class AdminStatsController {
                 },
               },
             },
-            i10index: {
+            i10Index: {
               $size: {
                 $filter: {
                   input: "$papers",

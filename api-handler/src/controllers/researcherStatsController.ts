@@ -310,17 +310,23 @@ export class ResearcherStatsController {
           "totalPapers",
           "citations",
           "totalCitations",
-          "h_index",
-          "i_index",
+          "hIndex",
+          "i10Index",
         ].includes(criteria)
       ) {
         throw new createHttpError.BadRequest(
-          "Invalid criteria, must be either totalPapers, citations/totalCitations, h_index or i_index"
+          "Invalid criteria, must be either totalPapers, citations/totalCitations, hIndex or i10Index"
         );
       }
 
       if (criteria === "totalCitations") {
         criteria = "citations";
+      }
+      if ((criteria = "i10Index")) {
+        criteria = "i_index";
+      }
+      if ((criteria = "hIndex")) {
+        criteria = "h_index";
       }
 
       const specifiedScholar = await ResearcherModel.findOne({
