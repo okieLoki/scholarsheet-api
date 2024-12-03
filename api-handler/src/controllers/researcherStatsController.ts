@@ -180,123 +180,102 @@ export class ResearcherStatsController {
         );
       }
 
-      const pipeline: PipelineStage[] = [
-        {
-          $match: {
-            "researcher.scholar_id": scholar_id,
-            admin_id: admin_id,
-            publicationDate: { $ne: null },
-          },
-        },
-        {
-          $group: {
-            _id: "$publicationDate",
-            papers: {
-              $push: {
-                citations: "$totalCitations",
-              },
-            },
-            count: { $sum: 1 },
-            totalCitations: { $sum: "$totalCitations" },
-          },
-        },
-        {
-          $sort: { _id: 1 },
-        },
-      ];
-
-      const result = await PaperModel.aggregate(pipeline);
-
-      let graphData;
-      let cumulativePapers: any[] = [];
-
-      switch (criteria) {
-        case "totalPapers":
-          graphData = result.map((item) => ({
-            year: parseInt(item._id),
-            value: item.count,
-          }));
-          break;
-        case "totalCitations":
-          graphData = result.map((item) => ({
-            year: parseInt(item._id),
-            value: item.totalCitations,
-          }));
-          break;
-        case "hIndex":
-        case "i10Index":
-          graphData = result.map((item, index) => {
-            cumulativePapers = [...cumulativePapers, ...item.papers];
-            const sortedCitations = cumulativePapers
-              .map((p) => p.citations)
-              .sort((a, b) => b - a);
-
-            let h = 0;
-            while (h < sortedCitations.length && sortedCitations[h] >= h + 1) {
-              h++;
-            }
-
-            const i10Count = cumulativePapers.filter(
-              (p) => p.citations >= 10
-            ).length;
-
-            return {
-              year: parseInt(item._id),
-              value: criteria === "hIndex" ? h : i10Count,
-            };
-          });
-          break;
-      }
-
-      const nullDatePapers = await PaperModel.find({
+      const papers = await PaperModel.find({
         "researcher.scholar_id": scholar_id,
-        admin_id: admin_id,
-        publicationDate: null,
+        admin_id,
+      })
+        .select("publicationDate totalCitations")
+        .lean();
+
+      const groupedPapers: Record<string, number[]> = {};
+      const nullDatePapers: number[] = [];
+
+      papers.forEach((paper) => {
+        const year = paper.publicationDate || null;
+        if (year === null) {
+          nullDatePapers.push(paper.totalCitations || 0);
+        } else {
+          if (!groupedPapers[year]) groupedPapers[year] = [];
+          groupedPapers[year].push(paper.totalCitations || 0);
+        }
       });
 
+      const graphData: { year: string | null; value: number }[] = [];
+      let cumulativePapers: number[] = [];
+
+      Object.keys(groupedPapers)
+        .sort()
+        .forEach((year) => {
+          const citations = groupedPapers[year];
+          cumulativePapers = [...cumulativePapers, ...citations];
+
+          switch (criteria) {
+            case "totalPapers":
+              graphData.push({ year, value: citations.length });
+              break;
+            case "totalCitations":
+              graphData.push({
+                year,
+                value: citations.reduce((sum, count) => sum + count, 0),
+              });
+              break;
+            case "hIndex":
+            case "i10Index":
+              const sortedCitations = cumulativePapers.sort((a, b) => b - a);
+              if (criteria === "hIndex") {
+                let h = 0;
+                while (
+                  h < sortedCitations.length &&
+                  sortedCitations[h] >= h + 1
+                ) {
+                  h++;
+                }
+                graphData.push({ year, value: h });
+              } else {
+                const i10Count = cumulativePapers.filter((c) => c >= 10).length;
+                graphData.push({ year, value: i10Count });
+              }
+              break;
+          }
+        });
+
       if (nullDatePapers.length > 0) {
+        cumulativePapers = [...cumulativePapers, ...nullDatePapers];
         const nullYearData = { year: null, value: 0 };
+
         switch (criteria) {
           case "totalPapers":
             nullYearData.value = nullDatePapers.length;
             break;
           case "totalCitations":
             nullYearData.value = nullDatePapers.reduce(
-              (sum, paper) => sum + (paper.totalCitations || 0),
+              (sum, count) => sum + count,
               0
             );
             break;
           case "hIndex":
-          case "i10Index":
-            cumulativePapers = [
-              ...cumulativePapers,
-              ...nullDatePapers.map((p) => ({
-                citations: p.totalCitations || 0,
-              })),
-            ];
-            const sortedCitations = cumulativePapers
-              .map((p) => p.citations)
-              .sort((a, b) => b - a);
-
             let h = 0;
-            while (h < sortedCitations.length && sortedCitations[h] >= h + 1) {
+            const sortedNullCitations = cumulativePapers.sort((a, b) => b - a);
+            while (
+              h < sortedNullCitations.length &&
+              sortedNullCitations[h] >= h + 1
+            ) {
               h++;
             }
-
-            const i10Count = cumulativePapers.filter(
-              (p) => p.citations >= 10
-            ).length;
-
-            nullYearData.value = criteria === "hIndex" ? h : i10Count;
+            nullYearData.value = h;
+            break;
+          case "i10Index":
+            nullYearData.value = cumulativePapers.filter((c) => c >= 10).length;
             break;
         }
         graphData.push(nullYearData);
       }
 
-      const finalData = {};
-      graphData.forEach((item) => {
-        finalData[item.year] = item.value;
-      });
+      const finalData = graphData.reduce((acc, { year, value }) => {
+        // @ts-ignore
+        acc[year] = value;
+        return acc;
+      }, {});
 
       res.status(200).json(finalData);
     } catch (error) {
@@ -312,7 +291,7 @@ export class ResearcherStatsController {
     try {
       const admin_id = req.admin.id as string;
       const scholar_id = req.query.scholar_id as string;
-      const criteria = req.query.criteria as string;
+      let criteria = req.query.criteria as string;
       const limit = parseInt(req.query.limit as string) || 5;
       const page = parseInt(req.query.page as string) || 1;
 
@@ -327,11 +306,21 @@ export class ResearcherStatsController {
       }
 
       if (
-        !["totalPapers", "citations", "h_index", "i_index"].includes(criteria)
+        ![
+          "totalPapers",
+          "citations",
+          "totalCitations",
+          "h_index",
+          "i_index",
+        ].includes(criteria)
       ) {
         throw new createHttpError.BadRequest(
-          "Invalid criteria, must be either totalPapers, citations, h_index or i_index"
+          "Invalid criteria, must be either totalPapers, citations/totalCitations, h_index or i_index"
         );
+      }
+
+      if (criteria === "totalCitations") {
+        criteria = "citations";
       }
 
       const specifiedScholar = await ResearcherModel.findOne({

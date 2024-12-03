@@ -242,102 +242,51 @@ export class AdminStatsController {
         );
       }
 
-      const matchStage = { admin_id: admin.id };
+      const matchConditions: any = { admin_id: admin.id };
       if (department) {
-        matchStage["researcher.department"] = department;
+        matchConditions["researcher.department"] = department;
       }
 
-      let aggregationPipeline: PipelineStage[];
+      const papers = await PaperModel.find(matchConditions)
+        .select("publicationDate totalCitations")
+        .lean();
 
-      if (criteria === "hIndex" || criteria === "i10index") {
-        aggregationPipeline = [
-          { $match: matchStage },
-          {
-            $group: {
-              _id: "$publicationDate",
-              papers: { $push: { citations: "$totalCitations" } },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              year: "$_id",
-              value: {
-                $size: {
-                  $filter: {
-                    input:
-                      criteria === "hIndex"
-                        ? {
-                            $range: [
-                              0,
-                              {
-                                $max: [
-                                  { $size: "$papers" },
-                                  { $max: "$papers.citations" },
-                                ],
-                              },
-                            ],
-                          }
-                        : "$papers",
-                    as: criteria === "hIndex" ? "i" : "paper",
-                    cond:
-                      criteria === "hIndex"
-                        ? {
-                            $gte: [
-                              {
-                                $size: {
-                                  $filter: {
-                                    input: "$papers",
-                                    as: "p",
-                                    cond: { $gte: ["$$p.citations", "$$i"] },
-                                  },
-                                },
-                              },
-                              "$$i",
-                            ],
-                          }
-                        : { $gte: ["$$paper.citations", 10] },
-                  },
-                },
-              },
-            },
-          },
-          { $sort: { year: 1 } },
-        ];
-      } else {
-        aggregationPipeline = [
-          { $match: matchStage },
-          {
-            $group: {
-              _id: "$publicationDate",
-              value:
-                criteria === "totalPapers"
-                  ? { $sum: 1 }
-                  : { $sum: "$totalCitations" },
-            },
-          },
-          {
-            $match: {
-              _id: { $ne: "" },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              year: "$_id",
-              value: 1,
-            },
-          },
-          { $sort: { year: 1 } },
-        ];
+      const groupedData: Record<string, number[]> = {};
+
+      papers.forEach((paper) => {
+        const year = paper.publicationDate;
+        if (!groupedData[year]) groupedData[year] = [];
+        groupedData[year].push(paper.totalCitations || 0);
+      });
+
+      const formattedResult: Record<string, number> = {};
+
+      for (const year of Object.keys(groupedData)) {
+        const citationCounts = groupedData[year].sort((a, b) => b - a);
+
+        if (criteria === "totalPapers") {
+          formattedResult[year] = citationCounts.length;
+        } else if (criteria === "totalCitations") {
+          formattedResult[year] = citationCounts.reduce(
+            (sum, count) => sum + count,
+            0
+          );
+        } else if (criteria === "hIndex") {
+          let hIndex = 0;
+          for (let i = 0; i < citationCounts.length; i++) {
+            if (citationCounts[i] >= i + 1) {
+              hIndex = i + 1;
+            } else {
+              break;
+            }
+          }
+          formattedResult[year] = hIndex;
+        } else if (criteria === "i10index") {
+          formattedResult[year] = citationCounts.filter(
+            (count) => count >= 10
+          ).length;
+        }
       }
-
-      const result = await PaperModel.aggregate(aggregationPipeline);
-
-      const formattedResult = result.reduce((acc, item) => {
-        acc[item.year] = item.value;
-        return acc;
-      }, {} as Record<string, number>);
 
       res.status(200).json(formattedResult);
     } catch (error) {
@@ -353,7 +302,7 @@ export class AdminStatsController {
     try {
       const admin = req.admin;
       const department = req.query.department as string | undefined;
-      const criteria = req.query.criteria as string;
+      let criteria = req.query.criteria as string;
 
       // YEAR means hIndex, iIndex, totalCitations, totalPapers for that year
       const year = req.query.year ? parseInt(req.query.year as string) : null;
@@ -374,14 +323,20 @@ export class AdminStatsController {
         throw new createHttpError.BadRequest("Invalid department");
 
       if (
-        !["totalCitations", "totalPapers", "hIndex", "i10index"].includes(
-          criteria
-        )
+        ![
+          "totalCitations",
+          "citations",
+          "totalPapers",
+          "hIndex",
+          "i10index",
+        ].includes(criteria)
       ) {
         throw new createHttpError.BadRequest(
-          "Invalid or missing criteria, valid criteria are 'totalPapers', 'totalCitations', 'hIndex' and 'i10index'"
+          "Invalid or missing criteria, valid criteria are 'totalPapers', 'totalCitations/citations', 'hIndex' and 'i10index'"
         );
       }
+
+      if (criteria === "citations") criteria = "totalCitations";
 
       const matchStage = { admin_id: admin.id };
       if (department) {
