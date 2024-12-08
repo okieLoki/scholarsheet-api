@@ -72,6 +72,9 @@ export const researcherSchema = new Schema({
       ref: "Admin",
     },
   ],
+  lastFetch: {
+    type: Date,
+  },
 });
 
 researcherSchema.index({ name: "text", department: "text" });

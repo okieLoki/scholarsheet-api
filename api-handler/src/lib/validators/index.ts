@@ -139,10 +139,64 @@ export const deleteResearcherSchema = z.object({
   ),
 });
 
-export const researcherUpdateSchema = z.object({
-  name: z.string().min(2).max(100).optional(),
-  email: z.string().email().optional(),
-  department: z.string().optional(),
-  gender: z.enum(['Male', 'Female', 'Other']).optional(),
-  positions: z.array(z.string()).optional(),
-}).strict();
+export const researcherUpdateSchema = z
+  .object({
+    name: z.string().min(2).max(100).optional(),
+    email: z.string().email().optional(),
+    department: z.string().optional(),
+    gender: z.enum(["Male", "Female", "Other"]).optional(),
+    positions: z.array(z.string()).optional(),
+  })
+  .strict();
+
+export const bulkResearcherUploadSchema = z.object({
+  scholars: z.array(
+    z.object({
+      scholar_id: z.string().trim().min(1, "Scholar ID is required"),
+      email: z.string().email("Invalid email format"),
+      department: z.string().trim().min(1, "Department is required"),
+      gender: z.enum(["Male", "Female", "Other"]),
+      positions: z
+        .array(
+          z.object({
+            position: z.string().trim().min(1, "Position is required"),
+            institute: z.string().trim().min(1, "Institute is required"),
+            start: z.string().refine((date) => {
+              const regex = /^\d{2}-\d{2}-\d{4}$/;
+              if (!regex.test(date)) return false;
+
+              const [day, month, year] = date.split("-").map(Number);
+              const parsedDate = new Date(year, month - 1, day);
+              return (
+                parsedDate.getFullYear() === year &&
+                parsedDate.getMonth() === month - 1 &&
+                parsedDate.getDate() === day
+              );
+            }, "Start date must be in dd-mm-yyyy format"),
+            end: z
+              .string()
+              .optional()
+              .nullable()
+              .refine((date) => {
+                if (date === null || date === undefined) return true;
+
+                const regex = /^\d{2}-\d{2}-\d{4}$/;
+                if (!regex.test(date)) return false;
+
+                const [day, month, year] = date.split("-").map(Number);
+                const parsedDate = new Date(year, month - 1, day);
+                return (
+                  parsedDate.getFullYear() === year &&
+                  parsedDate.getMonth() === month - 1 &&
+                  parsedDate.getDate() === day
+                );
+              }, "End date must be in dd-mm-yyyy format"),
+            current: z.boolean().optional().default(false),
+          })
+        )
+        .max(3, "Maximum 3 positions allowed")
+        .optional()
+        .default([]),
+    })
+  ),
+});
