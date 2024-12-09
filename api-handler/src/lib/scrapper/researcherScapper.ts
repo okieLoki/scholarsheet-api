@@ -1,6 +1,7 @@
 import axios from "axios";
 import { load } from "cheerio";
 import type { ResearcherData } from "../../types";
+import { l } from "../../config/logger";
 
 class ResearcherScraper {
   public async getResearcherData(scholarId: string): Promise<ResearcherData> {
@@ -29,10 +30,11 @@ class ResearcherScraper {
         i10Index,
       } as ResearcherData;
     } catch (error) {
+      console.log(error)
+      l.error("[ResearcherScraper] Error fetching data", error);
       throw new Error("Error fetching data");
     }
   }
-
 }
 
 export const researcherScrapper = new ResearcherScraper();

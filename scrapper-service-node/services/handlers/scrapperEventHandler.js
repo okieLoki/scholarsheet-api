@@ -4,63 +4,78 @@ import { Paper } from "../../schemas/paper.js";
 import { Researcher } from "../../schemas/researcher.js";
 import { fetchAllPublicationDetails } from "../scrapper/scrapper.js";
 import { l } from "../../config/logger.js";
+import pLimit from "p-limit";
 
 class ScrapperEventHandler {
+  constructor() {
+    this.concurrencyLimit = 5;
+  }
+
   async listenForCalculatorEvents() {
     try {
+      const limit = pLimit(this.concurrencyLimit);
+
       rabbitMq.consume(queues.RESEACHER_QUEUE, async (msg) => {
         if (!msg) return;
 
-        const { admin_id, researcher } = JSON.parse(msg.content.toString());
-        const { researcher_id, name, scholar_id } = researcher;
+        await limit(async () => {
+          try {
+            const { admin_id, researcher } = JSON.parse(msg.content.toString());
+            const { researcher_id, name, scholar_id } = researcher;
 
-        l.info(`Fetching papers for scholar_id: ${scholar_id}`);
+            l.info(`Fetching papers for scholar_id: ${scholar_id}`);
 
-        const fetchedPapers = await fetchAllPublicationDetails(scholar_id);
+            const fetchedPapers = await fetchAllPublicationDetails(scholar_id);
+            const metrics = this.calculateMetrics(fetchedPapers);
 
-        const metrics = this.calculateMetrics(fetchedPapers);
+            const updatedResearcher = await Researcher.findOneAndUpdate(
+              {
+                scholar_id,
+              },
+              {
+                $set: {
+                  totalPapers: fetchedPapers.length,
+                  h_index: metrics.hIndex,
+                  i_index: metrics.i10Index,
+                  citations: metrics.totalCitations,
+                  lastFetch: new Date(),
+                },
+              }
+            );
 
-        const updatedResearcher = await Researcher.findOneAndUpdate(
-          { _id: researcher_id },
-          {
-            $set: {
-              totalPapers: fetchedPapers.length,
-              h_index: metrics.hIndex,
-              i_index: metrics.i10Index,
-              citations: metrics.totalCitations,
-              lastFetch: new Date(),
-            },
+            console.log(updatedResearcher);
+
+            const papersToInsert = fetchedPapers.map((paper) => ({
+              researcher: {
+                researcher_id,
+                name,
+                scholar_id,
+                department: updatedResearcher.department,
+              },
+              admin_id,
+              title: paper.title,
+              link: paper.link,
+              authors: paper.authors,
+              publicationDate: paper.publicationDate,
+              journal: paper.journal,
+              volume: paper.volume,
+              issue: paper.issue,
+              pages: paper.pages,
+              publisher: paper.publisher,
+              description: paper.description,
+              totalCitations: paper.totalCitations,
+              pdfLink: paper.pdfLink,
+            }));
+
+            l.info(`Inserting ${papersToInsert.length} papers for ${name}`);
+            await Paper.insertMany(papersToInsert);
+
+            rabbitMq.ack(msg);
+          } catch (error) {
+            l.error(`Error processing researcher: ${error}`);
+            rabbitMq.nack(msg);
           }
-        );
-
-        const papersToInsert = fetchedPapers.map((paper) => ({
-          researcher: {
-            researcher_id,
-            name,
-            scholar_id,
-            department: updatedResearcher.department,
-          },
-          admin_id,
-          title: paper.title,
-          link: paper.link,
-          authors: paper.authors,
-          publicationDate: paper.publicationDate,
-          journal: paper.journal,
-          volume: paper.volume,
-          issue: paper.issue,
-          pages: paper.pages,
-          publisher: paper.publisher,
-          description: paper.description,
-          totalCitations: paper.totalCitations,
-          link: paper.link,
-          pdfLink: paper.pdfLink,
-        }));
-
-        l.info(`Inserting ${papersToInsert.length} papers for ${name}`);
-
-        await Paper.insertMany(papersToInsert);
-
-        rabbitMq.ack(msg);
+        });
       });
     } catch (error) {
       l.error(`Error consuming messages: ${error}`);

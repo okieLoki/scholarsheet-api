@@ -55,6 +55,14 @@ class RabbitMQ {
       l.error("Cannot close channel. Channel is not initialized.");
     }
   }
+
+  async nack(message) {
+    if (this.channel) {
+      this.channel.nack(message, false, false);
+    } else {
+      l.error("Cannot nack message. Channel is not initialized.");
+    }
+  }
 }
 
 export const rabbitMq = new RabbitMQ();

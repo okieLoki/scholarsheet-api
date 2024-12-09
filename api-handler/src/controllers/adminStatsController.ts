@@ -59,130 +59,52 @@ export class AdminStatsController {
         matchStage["researcher.department"] = department;
       }
 
-      const [paperStats, researcherCount] = await Promise.all([
-        PaperModel.aggregate([
-          { $match: matchStage },
-          {
-            $group: {
-              _id: {
-                $toInt: {
-                  $cond: [
-                    {
-                      $eq: [
-                        {
-                          $arrayElemAt: [
-                            { $split: ["$publicationDate", "/"] },
-                            0,
-                          ],
-                        },
-                        "",
-                      ],
-                    },
-                    "0",
-                    {
-                      $arrayElemAt: [{ $split: ["$publicationDate", "/"] }, 0],
-                    },
-                  ],
-                },
-              },
-              publicationCount: { $sum: 1 },
-              citationCount: { $sum: "$totalCitations" },
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              currentYearCitations: {
-                $sum: {
-                  $cond: [{ $eq: ["$_id", currentYear] }, "$citationCount", 0],
-                },
-              },
-              lastYearCitations: {
-                $sum: {
-                  $cond: [{ $eq: ["$_id", lastYear] }, "$citationCount", 0],
-                },
-              },
-              currentYearPublications: {
-                $sum: {
-                  $cond: [
-                    { $eq: ["$_id", currentYear] },
-                    "$publicationCount",
-                    0,
-                  ],
-                },
-              },
-              lastYearPublications: {
-                $sum: {
-                  $cond: [{ $eq: ["$_id", lastYear] }, "$publicationCount", 0],
-                },
-              },
-              totalPapers: { $sum: "$publicationCount" },
-            },
-          },
-          {
-            $project: {
-              _id: 0,
-              citations: {
-                [currentYear]: "$currentYearCitations",
-                [lastYear]: "$lastYearCitations",
-                growth: {
-                  $cond: [
-                    { $eq: ["$lastYearCitations", 0] },
-                    null,
-                    {
-                      $multiply: [
-                        {
-                          $divide: [
-                            {
-                              $subtract: [
-                                "$currentYearCitations",
-                                "$lastYearCitations",
-                              ],
-                            },
-                            "$lastYearCitations",
-                          ],
-                        },
-                        100,
-                      ],
-                    },
-                  ],
-                },
-              },
-              publications: {
-                [currentYear]: "$currentYearPublications",
-                [lastYear]: "$lastYearPublications",
-                growth: {
-                  $cond: [
-                    { $eq: ["$lastYearPublications", 0] },
-                    null,
-                    {
-                      $multiply: [
-                        {
-                          $divide: [
-                            {
-                              $subtract: [
-                                "$currentYearPublications",
-                                "$lastYearPublications",
-                              ],
-                            },
-                            "$lastYearPublications",
-                          ],
-                        },
-                        100,
-                      ],
-                    },
-                  ],
-                },
-              },
-              totalPapers: 1,
-            },
-          },
-        ]),
-        ResearcherModel.countDocuments({
-          admin_id: admin.id,
-          ...(department && { department }),
-        }),
-      ]);
+      // Fetch all relevant papers
+      const papers = await PaperModel.find(matchStage);
+
+      let currentYearCitations = 0;
+      let lastYearCitations = 0;
+      let currentYearPublications = 0;
+      let lastYearPublications = 0;
+      let totalCitations = 0;
+      let totalPapers = papers.length;
+
+      // Process papers in JavaScript
+      papers.forEach((paper) => {
+        const publicationYear = parseInt(paper.publicationDate);
+        const citations = paper.totalCitations || 0;
+
+        totalCitations += citations;
+
+        if (publicationYear === currentYear) {
+          currentYearCitations += citations;
+          currentYearPublications += 1;
+        } else if (publicationYear === lastYear) {
+          lastYearCitations += citations;
+          lastYearPublications += 1;
+        }
+      });
+
+      // Fetch researcher count
+      const researcherCount = await ResearcherModel.countDocuments({
+        admin_id: admin.id,
+        ...(department && { department }),
+      });
+
+      // Calculate growth percentages
+      const calculateGrowth = (current: number, previous: number) => {
+        if (previous === 0) return null;
+        return ((current - previous) / previous) * 100;
+      };
+
+      const citationsGrowth = calculateGrowth(
+        currentYearCitations,
+        lastYearCitations
+      );
+      const publicationsGrowth = calculateGrowth(
+        currentYearPublications,
+        lastYearPublications
+      );
 
       const formatGrowth = (value: number | null) => {
         if (value === null) return "N/A (no data for previous year)";
@@ -192,22 +114,19 @@ export class AdminStatsController {
       };
 
       const result = {
-        citations: paperStats[0]?.citations || {
-          [currentYear]: 0,
-          [lastYear]: 0,
-          growth: null,
+        citations: {
+          [currentYear]: currentYearCitations,
+          [lastYear]: lastYearCitations,
+          growth: formatGrowth(citationsGrowth),
         },
-        publications: paperStats[0]?.publications || {
-          [currentYear]: 0,
-          [lastYear]: 0,
-          growth: null,
+        publications: {
+          [currentYear]: currentYearPublications,
+          [lastYear]: lastYearPublications,
+          growth: formatGrowth(publicationsGrowth),
         },
-        totalPapers: paperStats[0]?.totalPapers || 0,
+        totalPapers,
         totalResearchers: researcherCount,
       };
-
-      result.citations.growth = formatGrowth(result.citations.growth);
-      result.publications.growth = formatGrowth(result.publications.growth);
 
       res.status(200).json(result);
     } catch (error) {
