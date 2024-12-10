@@ -36,10 +36,6 @@ class CalculatorService {
 
           // format date as we do not receive perfect date every time and add tags
           const paperPromises = papers.map(async (paper) => {
-            const yearOfPublication = (paper.publicationDate as string).split(
-              "/"
-            )[0];
-
             const predictResponse = await axios.post(
               "http://localhost:5000/predict",
               {
@@ -55,8 +51,6 @@ class CalculatorService {
               {
                 $set: {
                   tags,
-                  publicationDate: yearOfPublication,
-                  "researcher.department": updatedResearcher?.department,
                 },
               }
             );

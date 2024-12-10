@@ -8,14 +8,14 @@ import pLimit from "p-limit";
 
 class ScrapperEventHandler {
   constructor() {
-    this.concurrencyLimit = 5;
+    this.concurrencyLimit = 1;
   }
 
   async listenForCalculatorEvents() {
     try {
       const limit = pLimit(this.concurrencyLimit);
 
-      rabbitMq.consume(queues.RESEACHER_QUEUE, async (msg) => {
+      rabbitMq.consume(queues.RESEARCHER_QUEUE, async (msg) => {
         if (!msg) return;
 
         await limit(async () => {
@@ -43,8 +43,6 @@ class ScrapperEventHandler {
               }
             );
 
-            console.log(updatedResearcher);
-
             const papersToInsert = fetchedPapers.map((paper) => ({
               researcher: {
                 researcher_id,
@@ -71,6 +69,11 @@ class ScrapperEventHandler {
             await Paper.insertMany(papersToInsert);
 
             rabbitMq.ack(msg);
+
+            await rabbitMq.publish(
+              queues.CALCULATION_QUEUE,
+              JSON.stringify({ researcher_id })
+            );
           } catch (error) {
             l.error(`Error processing researcher: ${error}`);
             rabbitMq.nack(msg);

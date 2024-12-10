@@ -174,8 +174,10 @@ export class AdminStatsController {
 
       papers.forEach((paper) => {
         const year = paper.publicationDate;
-        if (!groupedData[year]) groupedData[year] = [];
-        groupedData[year].push(paper.totalCitations || 0);
+        if (!isNaN(Number(year))) {
+          if (!groupedData[year]) groupedData[year] = [];
+          groupedData[year].push(paper.totalCitations || 0);
+        }
       });
 
       const formattedResult: Record<string, number> = {};
@@ -429,8 +431,9 @@ export class AdminStatsController {
         { $sort: { count: -1 } },
       ];
 
-      const result = await PaperModel.aggregate(aggregationPipeline);
-      res.status(200).json(result);
+      let journals = await PaperModel.aggregate(aggregationPipeline);
+      journals = journals.filter((journal) => journal._id !== "N/A");
+      res.status(200).json(journals);
     } catch (error) {
       next(error);
     }

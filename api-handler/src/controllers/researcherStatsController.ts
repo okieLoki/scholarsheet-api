@@ -519,7 +519,9 @@ export class ResearcherStatsController {
         });
       }
 
-      const journals = await PaperModel.aggregate(pipeline);
+      let journals = await PaperModel.aggregate(pipeline);
+
+      journals = journals.filter((journal) => journal._id !== "N/A");
 
       res.status(200).json(journals);
     } catch (error) {

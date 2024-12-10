@@ -8,6 +8,7 @@ import { initializeRoutes } from "./routes/routes";
 import { createServer } from "http";
 import { socketService } from "./config/socket";
 import morgan from "morgan";
+import cors from "cors";
 import { l } from "./config/logger";
 
 const init = async () => {
@@ -20,6 +21,7 @@ const init = async () => {
 
   app.use(express.json());
   app.use(morgan("dev"));
+  app.use(cors());
 
   initializeRoutes(app);
 

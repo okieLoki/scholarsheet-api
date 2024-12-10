@@ -1,8 +1,9 @@
 import mongoose, { PipelineStage } from "mongoose";
 import { ResearcherModel } from "../../models/researcher";
+import { AdminModel } from "../../models/admin";
 
 class RankService {
-  public async getRankOfInstitute(adminId: string) {
+  public async getRankOfInstitute(admin_id: string) {
     const pipelines: Record<string, PipelineStage[]> = {
       totalPapers: [
         {
@@ -66,7 +67,13 @@ class RankService {
       pipeline.push({ $sort: { totalCitations: -1 } });
     }
 
-    const rankings = await ResearcherModel.aggregate(pipeline);
+    let rankings = await ResearcherModel.aggregate(pipeline);
+    rankings = await Promise.all(
+      rankings.map(async (entry) => ({
+        ...entry,
+        institute: (await AdminModel.findById(entry._id))?.institute_name,
+      }))
+    );
     return rankings;
   }
 }
