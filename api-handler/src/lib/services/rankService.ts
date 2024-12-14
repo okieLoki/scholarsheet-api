@@ -68,6 +68,9 @@ class RankService {
     }
 
     let rankings = await ResearcherModel.aggregate(pipeline);
+
+    console.log(rankings)
+
     rankings = await Promise.all(
       rankings.map(async (entry) => ({
         ...entry,

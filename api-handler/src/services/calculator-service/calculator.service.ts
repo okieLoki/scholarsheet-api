@@ -6,6 +6,11 @@ import { l } from "../../config/logger";
 import axios from "axios";
 import { socketService } from "../../config/socket";
 import mongoose from "mongoose";
+import { Resend } from "resend";
+import { config } from "../../config";
+import { AdminModel } from "../../models/admin";
+
+const resend = new Resend("re_XbxaXhyg_2mrLdDwjfhbhHGCfH5R2tceH");
 
 class CalculatorService {
   public async listenForCalculatorEvents() {
@@ -34,6 +39,8 @@ class CalculatorService {
             }
           );
 
+          const admin = await AdminModel.findById(updatedResearcher.admin_id);
+
           // format date as we do not receive perfect date every time and add tags
           const paperPromises = papers.map(async (paper) => {
             const predictResponse = await axios.post(
@@ -56,12 +63,34 @@ class CalculatorService {
             );
           });
 
+          console.log(admin);
+
           await Promise.all([
             paperPromises,
             socketService.sendNotification(
               updatedResearcher?.admin_id as mongoose.Types.ObjectId,
               `Successfully imported data for ${updatedResearcher?.name}`
             ),
+            (async () => {
+              try {
+                if (!admin || !admin.email) {
+                  l.warn("No admin email found for notification");
+                  return;
+                }
+
+                const emailResponse = await resend.emails.send({
+                  from: "noreply@scholarsheet.com",
+                  to: [admin.email, "uddeeptaraajkashyap@gmail.com"],
+                  subject: "Data Imported",
+                  html: `Successfully imported data for ${updatedResearcher?.name} and updated total papers to ${papers.length}`,
+                });
+
+                l.info("Email sent successfully", emailResponse);
+              } catch (emailError) {
+                l.error(emailError, "[CalculatorService: Resend Email Error]");
+                // Consider additional error handling or fallback notification method
+              }
+            })(),
           ]);
 
           rabbitmq.ack(msg);

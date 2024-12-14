@@ -13,6 +13,7 @@ class Config {
   public readonly CLOUDINARY_CLOUD_NAME: string;
   public readonly CLOUDINARY_API_KEY: string;
   public readonly CLOUDINARY_API_SECRET: string;
+  public readonly RESEND_API_KEY: string;
 
   constructor() {
     this.PORT = Number(process.env.PORT) || 8000;
@@ -26,6 +27,7 @@ class Config {
     this.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || "";
     this.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || "";
     this.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || "";
+    this.RESEND_API_KEY = process.env.RESEND_API_KEY || "";
   }
 
   public verifyConfig(): void {
@@ -36,6 +38,7 @@ class Config {
       "SMTP_USER",
       "SMTP_PASS",
       "JWT_SECRET",
+      "RESEND_API_KEY",
     ];
 
     envVariables.forEach((envVariable) => {

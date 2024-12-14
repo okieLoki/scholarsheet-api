@@ -144,7 +144,7 @@ export const researcherUpdateSchema = z
     name: z.string().min(2).max(100).optional(),
     email: z.string().email().optional(),
     department: z.string().optional(),
-    gender: z.enum(["Male", "Female", "Other"]).optional(),
+    gender: z.enum(["male", "female", "other"]).optional(),
     positions: z.array(z.string()).optional(),
   })
   .strict();
@@ -155,7 +155,7 @@ export const bulkResearcherUploadSchema = z.object({
       scholar_id: z.string().trim().min(1, "Scholar ID is required"),
       email: z.string().email("Invalid email format"),
       department: z.string().trim().min(1, "Department is required"),
-      gender: z.enum(["Male", "Female", "Other"]),
+      gender: z.enum(["male", "female", "other"]),
       positions: z
         .array(
           z.object({
